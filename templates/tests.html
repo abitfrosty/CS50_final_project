@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+{% block head %}
+    <script type="text/javascript" src="{{ url_for('static', filename='tests.js') }}"></script>
+{% endblock %}
+{% block title %}Tests{% endblock %}
+
+{% block main %}
+    <h2>Tests:</h2>
+    <div class="container-fluid">
+        <h3>Measuring your reaction, accuracy and precision</h3>
+        <p>Are you ready for a quick and easy and math's test?</p>
+        <form action="/generate_test" method="get" class="row g-1">
+            <div class="col-md-3">
+                <input class="form-control" name="level" autocomplete="off" placeholder="Level" type="number" value="3">
+            </div>
+            <div class="col-md-3">
+                <input class="form-control" name="questions" autocomplete="off" placeholder="Num of examples" type="number" value="10">
+            </div>
+            <div class="col-md-3">
+                <input class="form-control" name="time" autocomplete="off" placeholder="Time for each" type="number" value="10">
+            </div>
+            <div class="col-md-3">
+                <button class="btn-primary form-control" type="submit">I'm ready!</button>
+            </div>
+        </form>
+        {% if session.tests_id %}<div class="container-fluid" id="test"></div>{% endif %}
+    </div>
+    
+<div class="row g-3">
+  <div class="col-sm-7">
+    <input type="text" class="form-control" placeholder="City" aria-label="City">
+  </div>
+  <div class="col-sm">
+    <input type="text" class="form-control" placeholder="State" aria-label="State">
+  </div>
+  <div class="col-sm">
+    <input type="text" class="form-control" placeholder="Zip" aria-label="Zip">
+  </div>
+</div>
+    
+{% endblock %}

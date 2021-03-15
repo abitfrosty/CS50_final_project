@@ -1,0 +1,15 @@
+CREATE TABLE users(id INTEGER PRIMARY KEY, login TEXT NOT NULL UNIQUE, hash TEXT NOT NULL);
+CREATE TABLE profiles(users_id INTEGER PRIMARY KEY, name TEXT, gender TEXT, birthdate TEXT, education TEXT, bio TEXT, CONSTRAINT fk_users FOREIGN KEY(users_id) REFERENCES users(id) ON DELETE CASCADE);
+CREATE TABLE tests(id INTEGER PRIMARY KEY, users_id INTEGER, date TEXT NOT NULL DEFAULT CURRENT_DATE, level INTEGER NOT NULL, type TEXT, CONSTRAINT fk_users FOREIGN KEY(users_id) REFERENCES users(id) ON DELETE CASCADE);
+CREATE TABLE examples(id INTEGER PRIMARY KEY, users_id INTEGER, tests_id INTEGER, number INTEGER NOT NULL, example TEXT NOT NULL, eval TEXT NOT NULL, answer TEXT, timegiven INTEGER NOT NULL DEFAULT 0, timespent INTEGER NOT NULL DEFAULT 0, CONSTRAINT fk_users FOREIGN KEY(users_id) REFERENCES users(id) ON DELETE CASCADE, CONSTRAINT fk_tests FOREIGN KEY(tests_id) REFERENCES tests(id) ON DELETE CASCADE, UNIQUE(users_id, tests_id, number));
+CREATE INDEX users_id ON users(id);
+CREATE INDEX profiles_users_id ON profiles(users_id);
+CREATE INDEX profiles_name ON profiles(name);
+CREATE INDEX tests_id ON tests(id);
+CREATE INDEX tests_users_id ON tests(users_id);
+CREATE INDEX tests_date ON tests(date);
+CREATE INDEX tests_level ON tests(level);
+CREATE INDEX examples_id ON examples(id);
+CREATE INDEX examples_users_id ON examples(users_id);
+CREATE INDEX examples_tests_id ON examples(tests_id);
+

@@ -1,0 +1,20 @@
+            <div class="container-fluid">Total time: <span id="totalTime"></span></div>
+            {% for example in test %}
+            <form action="/example_answer" method="post" class="row g-1">
+                <div class="col-md-4">
+                    <input autocomplete="off" class="form-control" name="example" type="text" value="{{ example.example }}">
+                    <input value="{{ example.number }}" name="number" type="hidden">
+                    <input value="{{ example.tests_id }}" name="tests_id" type="hidden">
+                    <input value="0" name="timespent" type="hidden">
+                </div>
+                <div class="col-md-4">
+                    <input class="form-control" autofocus name="answer" placeholder="?" type="number">
+                </div>
+                <div class="col-md-4">
+                    <button class="btn-primary form-control" type="submit">Next ({{ example.timegiven }})</button>
+                </div>
+            </form>
+            {% endfor %}
+<!-- 
+tests_id INTEGER, number INTEGER NOT NULL, example TEXT NOT NULL, eval TEXT NOT NULL, answer TEXT, timegiven INTEGER NOT NULL DEFAULT 0, timespent
+-->

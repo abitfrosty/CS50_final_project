@@ -1,0 +1,88 @@
+{% extends "layout.html" %}
+{% block head %}
+    <script type="text/javascript" src="{{ url_for('static', filename='profile.js') }}"></script>
+{% endblock %}
+{% block title %}Profile{% endblock %}
+
+{% block main %}
+    <h2>Profile:</h2>
+    
+    <div class="container-fluid mb-5">
+        <p>The more you tell about yourself, the more accurate and precise overall statistics will be.</p>
+        <form action="/update_profile" method="post">
+            <div class="row row-cols-lg-1 g-1 mb-1 justify-content-center">
+                <div class="col-lg-3">
+                    <div class="input-group">
+                        <div class="input-group-text">Gender</div>
+                            <select class="form-select" name="gender">
+                                {% if not profile.gender %}<option disabled selected value=""></option>{% endif %}
+                                {% for gender in profile.gender_list %}
+                                <option value="{{ gender }}" {% if profile.gender == gender %}selected{% endif %}>{{ gender }}</option>
+                                {% endfor %}
+                            </select>
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="input-group">
+                        <div class="input-group-text">Birthdate</div>
+                            <input class="form-control" name="birthdate" value="{% if profile.birthdate %}{{ profile.birthdate }}{% endif %}" type="date">
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="input-group">
+                        <div class="input-group-text">Education</div>
+                            <input class="form-control" name="education" autocomplete="off" placeholder="Education" value="{% if profile.education %}{{ profile.education }}{% endif %}" type="text">
+                    </div>
+                </div>
+            </div>
+            <div class="row row-cols-lg-2 g-1 mb-1 justify-content-center">
+                <div class="col-lg-1"></div>
+                <div class="col-lg-9">
+                    <textarea class="form-control" name="bio" placeholder="What do you like?">{% if profile.bio %}{{ profile.bio }}{% endif %}</textarea>
+                </div>
+                <div class="col-lg-1"></div>
+            </div>
+            <div class="row row-cols-lg-3 g-1 justify-content-center">
+                <div class="col-12">
+                    <button class="btn btn-primary" type="submit">Update</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <div class="container-fluid mb-5">
+        <p>To change name:</p>
+        <form class="row row-cols-lg-auto g-1 justify-content-center" action="/update_name" method="post" id="formUpdateName">
+            <div class="col-lg-3">
+                <div class="input-group">
+                    <div class="input-group-text">Name</div>
+                    <input class="form-control" name="name" autocomplete="off" placeholder="What's your name?" value="{% if profile.name %}{{ profile.name }}{% endif %}" type="text">
+                </div>
+            </div>
+            <div class="col-lg-0">
+                <button class="btn btn-primary" type="submit">Change</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="container-fluid mb-5">
+        <p>To change password:</p>
+        <form class="row row-cols-lg-auto g-1 justify-content-center" action="/update_password" method="post">
+            <div class="col-lg-3">
+                <div class="input-group">
+                    <div class="input-group-text">Pswd</div>
+                    <input class="form-control" name="password" placeholder="New password" type="password">
+                </div>
+            </div>
+            <div class="col-lg-3">
+                <div class="input-group">
+                    <div class="input-group-text">Cnfrm</div>
+                    <input class="form-control" name="confirmation" placeholder="New password (again)" type="password">
+                </div>
+            </div>
+            <div class="col-lg-0">
+                <button class="btn btn-primary" type="submit">Change</button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

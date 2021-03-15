@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block main %}
+    <div class="container-fluid mb-5">
+        <form action="/register" method="post">
+            <div class="row row-cols-lg-auto g-1 mb-1 justify-content-center">
+                <div class="col-lg-4">
+                    <div class="input-group">
+                        <div class="input-group-text">Lgn</div>
+                        <input type="text" class="form-control" autofocus autocomplete="off" name="login" placeholder="Username">
+                    </div>
+                </div>
+            </div>
+            <div class="row row-cols-lg-auto g-1 mb-1 justify-content-center">
+                <div class="col-lg-4">
+                    <div class="input-group">
+                        <div class="input-group-text">Pswd</div>
+                        <input type="password" class="form-control" autocomplete="off" name="password" placeholder="***">
+                    </div>
+                </div>
+            </div>
+            <div class="row row-cols-lg-auto g-1 mb-1 justify-content-center">
+                <div class="col-lg-4">
+                    <div class="input-group">
+                        <div class="input-group-text">Cnfrm</div>
+                        <input type="password" class="form-control" autocomplete="off" name="confirmation" placeholder="***">
+                    </div>
+                </div>
+            </div>
+            <div class="row row-cols-lg-auto g-1 justify-content-center">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Register</button>
+                </div>
+            </div>
+        </form>
+    </div>
+{% endblock %}
