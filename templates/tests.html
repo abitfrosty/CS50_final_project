@@ -20,22 +20,11 @@
                 <input class="form-control" name="time" autocomplete="off" placeholder="Time for each" type="number" value="10">
             </div>
             <div class="col-md-3">
-                <button class="btn-primary form-control" type="submit">I'm ready!</button>
+                <button id="generateTest" class="btn-primary form-control" type="submit">I'm ready!</button>
             </div>
         </form>
-        {% if session.tests_id %}<div class="container-fluid" id="test"></div>{% endif %}
+        <div class="container-fluid" id="test"></div>
     </div>
     
-<div class="row g-3">
-  <div class="col-sm-7">
-    <input type="text" class="form-control" placeholder="City" aria-label="City">
-  </div>
-  <div class="col-sm">
-    <input type="text" class="form-control" placeholder="State" aria-label="State">
-  </div>
-  <div class="col-sm">
-    <input type="text" class="form-control" placeholder="Zip" aria-label="Zip">
-  </div>
-</div>
     
 {% endblock %}

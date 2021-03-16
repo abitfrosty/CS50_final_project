@@ -5,10 +5,11 @@ from werkzeug.exceptions import default_exceptions, HTTPException, InternalServe
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from helpers import apology, login_required, db_execute, usd
-from tests import generate_test, prepare_test_for_sql
+from tests import generate_tests, prepare_test_for_sql
 #from datetime import datetime
 import re
 import sqlite3
+from contextlib import closing
 
 
 # Configure application
@@ -136,7 +137,7 @@ def update_profile():
                      "UPDATE profiles SET gender = ?, birthdate = ?, education = ?, bio = ? WHERE users_id = ?;",
                      (request.form.get("gender"),request.form.get("birthdate"),request.form.get("education"),request.form.get("bio"),session["user_id"],))
     """
-    flash("Profile update was successful!")
+    flash(u"Profile update was successful!", "info")
     return redirect("/profile")
 
 
@@ -144,8 +145,11 @@ def update_profile():
 @login_required
 def update_password():
     """Change password"""
-    row = db_execute(SQLITE_DB, "UPDATE users SET hash = ? WHERE id = ?;", (generate_password_hash(request.form.get("password")), session["user_id"],))
-    flash("Your password has been changed successfully!")
+    if request.form.get("password") == request.form.get("confirmation"):
+        row = db_execute(SQLITE_DB, "UPDATE users SET hash = ? WHERE id = ?;", (generate_password_hash(request.form.get("password")), session["user_id"],))
+        flash(u"Your password has been changed successfully!", "info")
+    else:
+        flash(u"Password and confirmation did not match!", "danger")
     return redirect("/profile")
 
 
@@ -191,7 +195,7 @@ def register():
     user_id = db_execute(SQLITE_DB, "INSERT INTO users (login, hash) VALUES (?, ?)", (request.form.get("login"), generate_password_hash(request.form.get("password")),))
     db_execute(SQLITE_DB, "INSERT INTO profiles (users_id) VALUES (?);", (user_id,))
     session["user_id"] = user_id
-    flash("New user's registration with id \"{0}\" was successful!".format(user_id))
+    flash(u"New user's registration with id \"{0}\" was successful!".format(user_id), "info")
     return redirect("/")
 
 
@@ -203,18 +207,59 @@ def tests():
 @app.route("/generate_test", methods=["GET"])
 @login_required
 def generate_test():
+    if "tests_id" in session:
+        test = db_execute(SQLITE_DB, "SELECT users_id, tests_id, number, example, timegiven FROM examples WHERE users_id = ? AND tests_id = ?;", (session["user_id"], session["tests_id"],), False)
+        return render_template("generate_test.html", test=test)
+
+    """
+    conn = sqlite3.connect(SQLITE_DB)
+    cursor = conn.cursor()
+    query = "INSERT INTO tests (users_id, level) VALUES (?, ?);"
+    args = (session["user_id"], int(request.args.get("level")),)
+    print("1"+"="*10 + "GOT ARGS: " + str(args) + "="*10)
+    cursor.execute("BEGIN TRANSACTION;")
+    print("2"+"="*10 + "TRANSACTION BEGINS" + "="*10)
+    cursor.execute(query, args)
+    print("3"+"="*10 + "TEST QUERY EXECUTED" + "="*10)
+    tests_id = cursor.lastrowid
+    print("4"+"="*10 + "lastrowid:" + str(tests_id) + "="*10)
+    #test = generate_test(int(request.args.get("level")), int(request.args.get("questions")))
+    test = generate_test()
+    print("5"+"="*10 + "TEST GENERATED" + "="*10)
+    print("6"+"="*10 + str(test) + "="*10)
+    query = "INSERT INTO tests (users_id, level) VALUES (?, ?);"
+    args = prepare_test_for_sql(test, session["user_id"], tests_id, int(request.args.get("time")))
+    cursor.executemany(query, args)
+    print("7"+"="*10 + "EXECUTED MANY" + "="*10)
+    cursor.execute("COMMIT;")
+    closing(cursor)
+    closing(conn)
+    print("8"+"="*10 + "COMMITED" + "="*10)
+    session["tests_id"] = tests_id
+    return render_template("generate_test.html", test=test)"""
+
+
     with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
         with closing(conn.cursor()) as cursor: # auto-closes
-            query = "INSERT INTO tests (users_id, level) VALUES (?, ?)"
-            args = (session["user_id"], request.args.get("level"),)
-            cursor.execute("BEGIN TRANSACTION")
+            query = "INSERT INTO tests (users_id, level) VALUES (?, ?);"
+            args = (session["user_id"], int(request.args.get("level")),)
+            print("="*10 + "GOT ARGS: " + str(args) + "="*10)
+            cursor.execute("BEGIN TRANSACTION;")
+            print("="*10 + "TRANSACTION BEGINS" + "="*10)
             cursor.execute(query, args)
-            rowid = cursor.lastrowid
-            test = generate_test(level=request.args.get("level"), n=request.args.get("questions"))
-            query = "INSERT INTO tests (users_id, level) VALUES (?, ?)"
-            args = prepare_test_for_sql(test, users_id=session["user_id"], tests_id=rowid, timegiven=request.args.get("time"))
+            print("="*10 + "TEST QUERY EXECUTED" + "="*10)
+            tests_id = cursor.lastrowid
+            print("="*10 + "lastrowid:" + str(tests_id) + "="*10)
+            test = generate_tests(int(request.args.get("level")), int(request.args.get("questions")))
+            print("="*10 + "TEST GENERATED" + "="*10)
+            print("="*10 + str(test) + "="*10)
+            query = "INSERT INTO examples (users_id, tests_id, number, example, eval, timegiven) VALUES (?, ?, ?, ?, ?, ?);"
+            args = prepare_test_for_sql(test, session["user_id"], tests_id, int(request.args.get("time")))
             cursor.executemany(query, args)
-            cursor.execute("COMMIT")
+            print("="*10 + "EXECUTED MANY" + "="*10)
+            cursor.execute("COMMIT;")
+            print("="*10 + "COMMITED" + "="*10)
+            session["tests_id"] = tests_id
             return render_template("generate_test.html", test=test)
             #return jsonify(test)
     

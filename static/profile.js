@@ -3,8 +3,8 @@ function sleep(ms) {
 }
 
 function listener() {
+    
     function updateName() {
-        const formUpdate = $('#formUpdateName');
         const inputName = $('input[name="name"]');
         const name = inputName.val();
         $.ajax({
@@ -12,12 +12,12 @@ function listener() {
             url: "/update_name",
             data: {name: name}
         })
-        .done(function(data) {            
+        .done(function(data) {
+            // My hotfix to Bootstrap's button focus
+            inputName.focus().blur();
         })
         .fail(() => {
             console.log("Name update failed");
-            //errorMessage('', "Name update failed");
-            inputName.focus();
         });
     }
     

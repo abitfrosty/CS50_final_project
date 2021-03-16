@@ -33,16 +33,7 @@ def generate_example(level):
         return generate_example(level)
     return concat_example(variable1, operator, variable2)
 
-def generate_test(level=1, n=10):
-    examples = set()
-    test = []
-    while len(examples) < n:
-        examples.add(generate_example(level))
-    for idx, t in enumerate(examples, start=1):
-        test.append({"number": idx, "example": t, "eval": int(eval(t))})
-    return test
-
-def generate_test(level=1, n=10):
+def generate_tests(level=1, n=10):
     examples = set()
     test = []
     while len(examples) < n:

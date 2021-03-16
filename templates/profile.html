@@ -14,31 +14,33 @@
                 <div class="col-lg-3">
                     <div class="input-group">
                         <div class="input-group-text">Gender</div>
-                            <select class="form-select" name="gender">
-                                {% if not profile.gender %}<option disabled selected value=""></option>{% endif %}
-                                {% for gender in profile.gender_list %}
-                                <option value="{{ gender }}" {% if profile.gender == gender %}selected{% endif %}>{{ gender }}</option>
-                                {% endfor %}
-                            </select>
+                        <select class="form-select" name="gender">
+                            {% if not profile.gender %}<option disabled selected value=""></option>{% endif %}
+                            {% for gender in profile.gender_list %}
+                            <option value="{{ gender }}" {% if profile.gender == gender %}selected{% endif %}>{{ gender }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
                 <div class="col-lg-3">
                     <div class="input-group">
                         <div class="input-group-text">Birthdate</div>
-                            <input class="form-control" name="birthdate" value="{% if profile.birthdate %}{{ profile.birthdate }}{% endif %}" type="date">
+                        <input class="form-control" name="birthdate" value="{% if profile.birthdate %}{{ profile.birthdate }}{% endif %}" type="date">
                     </div>
                 </div>
                 <div class="col-lg-3">
                     <div class="input-group">
                         <div class="input-group-text">Education</div>
-                            <input class="form-control" name="education" autocomplete="off" placeholder="Education" value="{% if profile.education %}{{ profile.education }}{% endif %}" type="text">
+                        <input class="form-control" name="education" autocomplete="off" placeholder="Education" value="{% if profile.education %}{{ profile.education }}{% endif %}" type="text">
                     </div>
                 </div>
             </div>
             <div class="row row-cols-lg-2 g-1 mb-1 justify-content-center">
                 <div class="col-lg-1"></div>
                 <div class="col-lg-9">
-                    <textarea class="form-control" name="bio" placeholder="What do you like?">{% if profile.bio %}{{ profile.bio }}{% endif %}</textarea>
+                    <div class="input group">
+                        <textarea class="form-control" name="bio" placeholder="What do you like?">{% if profile.bio %}{{ profile.bio }}{% endif %}</textarea>
+                    </div>
                 </div>
                 <div class="col-lg-1"></div>
             </div>
