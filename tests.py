@@ -43,9 +43,8 @@ def generate_tests(level=1, n=10):
     return test
 
 def prepare_test_for_sql(test, users_id, tests_id, timegiven):
-    test_sql = []
     for row in test:
-        test_sql.append((users_id, tests_id, row["number"], row["example"], row["eval"], timegiven))
-    return test_sql
+        row.update({"users_id": users_id, "tests_id": tests_id, "timegiven": timegiven})
+    return test
 
 

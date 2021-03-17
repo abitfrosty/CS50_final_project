@@ -1,31 +1,51 @@
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 function listener() {
+
+    const notifications = document.getElementById('notifications');
+    rebindSubmit(document.getElementById('formUpdateName'));
+    rebindSubmit(document.getElementById('formUpdatePassword'));
+    rebindSubmit(document.getElementById('formUpdateProfile'));
     
-    function updateName() {
-        const inputName = $('input[name="name"]');
-        const name = inputName.val();
-        $.ajax({
-            method: "POST",
-            url: "/update_name",
-            data: {name: name}
-        })
-        .done(function(data) {
-            // My hotfix to Bootstrap's button focus
-            inputName.focus().blur();
-        })
-        .fail(() => {
-            console.log("Name update failed");
+    function update(myForm, lastInput) {
+        const xhr = new XMLHttpRequest();
+
+        xhr.onload = function() {
+          if (xhr.readyState === xhr.DONE && xhr.status === 200) {
+            notifications.insertAdjacentHTML('afterbegin', xhr.response);
+            alertTimer();
+            // Bootstrap's button focus fix
+            lastInput.focus(); lastInput.blur();
+              }
+          }
+
+        xhr.onerror = function() {
+          dump("Error while getting xhr.");
+        }
+    
+        xhr.open(myForm.method, myForm.action, true);
+        xhr.responseType = "json";
+        xhr.send(new FormData(myForm));
+    }
+
+    function rebindSubmit(submitForm){
+        submitForm.addEventListener('submit', function(evt) {
+            evt.preventDefault();
+            update(submitForm, submitForm.elements[submitForm.length-2]);
         });
     }
     
-    $('#formUpdateName').on('submit', function (e) {
-     updateName();
-     e.preventDefault();
-     });
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
     
+    function alertTimer() {
+        //.fadeTo(3000, 0)
+        $(".alert").first().hide().slideDown(500).delay(4000).slideUp(200, function(){
+            $(this).remove(); 
+        });
+    }
 }
 
+
 document.addEventListener('DOMContentLoaded', listener);
+

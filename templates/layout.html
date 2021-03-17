@@ -102,15 +102,18 @@
         <header>
             {% with messages = get_flashed_messages(with_categories=true) %}
               {% if messages %}
+              <div id="messages">
                 {% for category, message in messages %}
                 <div class='alert alert-{{ category }} alert-dismissible fade show text-center' role="alert">
                     {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
                 {% endfor %}
+              </div>
               {% endif %}
             {% endwith %}
             {% block header %}{% endblock %}
+            <div id="notifications"></div>
             <!--
             <div class="alert alert-primary alert-dismissible fade hide" role="alert"><button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
             <div class="alert alert-secondary alert-dismissible fade show" role="alert"><button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>

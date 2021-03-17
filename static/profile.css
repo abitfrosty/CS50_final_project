@@ -1,0 +1,17 @@
+
+div#notifications {
+  position: fixed;
+  width: 100%;
+  z-index: 7000;
+  top: 0;
+}
+
+/*
+.alert .alert-dismissible .fade .show {
+  position: fixed;
+  top: 47px;
+  left: 0;
+  right: 0;
+  z-index: 7000;
+}
+*/

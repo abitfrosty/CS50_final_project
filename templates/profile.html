@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% block head %}
     <script type="text/javascript" src="{{ url_for('static', filename='profile.js') }}"></script>
+    <link href={{ url_for('static', filename='profile.css') }} rel="stylesheet">
 {% endblock %}
 {% block title %}Profile{% endblock %}
 
@@ -9,7 +10,7 @@
     
     <div class="container-fluid mb-5">
         <p>The more you tell about yourself, the more accurate and precise overall statistics will be.</p>
-        <form action="/update_profile" method="post">
+        <form action="/update_profile" method="post" id="formUpdateProfile">
             <div class="row row-cols-lg-1 g-1 mb-1 justify-content-center">
                 <div class="col-lg-3">
                     <div class="input-group">
@@ -69,7 +70,7 @@
 
     <div class="container-fluid mb-5">
         <p>To change password:</p>
-        <form class="row row-cols-lg-auto g-1 justify-content-center" action="/update_password" method="post">
+        <form class="row row-cols-lg-auto g-1 justify-content-center" action="/update_password" method="post" id="formUpdatePassword">
             <div class="col-lg-3">
                 <div class="input-group">
                     <div class="input-group-text">Pswd</div>
