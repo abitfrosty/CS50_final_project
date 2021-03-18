@@ -26,9 +26,10 @@ def after_request(response):
     response.headers["Pragma"] = "no-cache"
     return response
 
-
+"""
 # Custom filter
 app.jinja_env.filters["usd"] = usd
+"""
 
 # Configure session to use filesystem (instead of signed cookies)
 app.config["SESSION_FILE_DIR"] = mkdtemp()
@@ -42,14 +43,14 @@ GENDER_LIST = ["male", "female", "other"]
 # Global path to the main database for 'db_execute'
 SQLITE_DB = "project.db"
 
-
+"""
 @app.template_filter('quoted')
 def quoted(s):
     l = re.findall("'(.*)\.html'", str(s))
     if l:
         return l[0]
     return None
-
+"""
 
 @app.route("/")
 @login_required
@@ -99,20 +100,28 @@ def login():
 @login_required
 def profile():
     """User's profile"""
-    row = db_execute(SQLITE_DB, "SELECT * FROM profiles WHERE users_id = ?;", (session["user_id"],))
-    row["gender_list"] = GENDER_LIST
-    return render_template("profile.html", profile=row)
+    profile = db_execute(SQLITE_DB, "SELECT * FROM profiles WHERE users_id = ?;", (session["user_id"],))
+    profile["gender_list"] = GENDER_LIST
+    return render_template("profile.html", profile=profile)
+
+
+# Dynamic notification system
+def dynamic_flash(message="", category="primary", closing=True):
+    """
+    XMLHttpRequest
+    Known categories: primary, secondary, danger, warning, info, light, dark
+    Requirements: flask[flash, jsonify, render_template], JQuery, Bootstrap
+    """
+    flash(message, category)
+    return jsonify(render_template(("generate_notifications.html"), with_closing=closing))
 
 
 @app.route("/update_name", methods=["POST"])
 @login_required
 def update_name():
-    try:
-        db_execute(SQLITE_DB, "UPDATE profiles SET name = ? WHERE users_id = ?;", (request.form.get("name"), session["user_id"],))
-        session["user_name"] = request.form.get("name")
-        return jsonify(name=session["user_name"])
-    except:
-        return None
+    db_execute(SQLITE_DB, "UPDATE profiles SET name = ? WHERE users_id = ?;", (request.form.get("name"), session["user_id"],))
+    session["user_name"] = request.form.get("name")
+    return dynamic_flash(u"Good to see you, {0}!".format(session["user_name"]),"primary")
 
 
 @app.route("/update_profile", methods=["POST"])
@@ -137,8 +146,8 @@ def update_profile():
                      "UPDATE profiles SET gender = ?, birthdate = ?, education = ?, bio = ? WHERE users_id = ?;",
                      (request.form.get("gender"),request.form.get("birthdate"),request.form.get("education"),request.form.get("bio"),session["user_id"],))
     """
-    flash(u"Profile update was successful!", "info")
-    return redirect("/profile")
+    
+    return dynamic_flash(u"Profile update was successful!", "info")
 
 
 @app.route("/update_password", methods=["POST"])
@@ -147,10 +156,9 @@ def update_password():
     """Change password"""
     if request.form.get("password") == request.form.get("confirmation"):
         row = db_execute(SQLITE_DB, "UPDATE users SET hash = ? WHERE id = ?;", (generate_password_hash(request.form.get("password")), session["user_id"],))
-        flash(u"Your password has been changed successfully!", "info")
+        return dynamic_flash(u"Your password has been changed successfully!", "info")
     else:
-        flash(u"Password and confirmation did not match!", "danger")
-    return redirect("/profile")
+        return dynamic_flash(u"Password and confirmation did not match!", "danger")
 
 
 @app.route("/logout")
@@ -192,7 +200,7 @@ def register():
     if len(apology_t):
         return apology(apology_t, apology_c)
 
-    user_id = db_execute(SQLITE_DB, "INSERT INTO users (login, hash) VALUES (?, ?)", (request.form.get("login"), generate_password_hash(request.form.get("password")),))
+    user_id = db_execute(SQLITE_DB, "INSERT INTO users (login, hash) VALUES (?, ?);", (request.form.get("login"), generate_password_hash(request.form.get("password")),))
     db_execute(SQLITE_DB, "INSERT INTO profiles (users_id) VALUES (?);", (user_id,))
     session["user_id"] = user_id
     flash(u"New user's registration with id \"{0}\" was successful!".format(user_id), "info")
@@ -207,76 +215,38 @@ def tests():
 @app.route("/generate_test", methods=["GET"])
 @login_required
 def generate_test():
+    """
+    Dynamic html (jsonify, jinja, jquery, ajax)
+    https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
+    """
     if "tests_id" in session:
         test = db_execute(SQLITE_DB, "SELECT users_id, tests_id, number, example, timegiven FROM examples WHERE users_id = ? AND tests_id = ?;", (session["user_id"], session["tests_id"],), False)
-        return render_template("generate_test.html", test=test)
-
-    """
-    conn = sqlite3.connect(SQLITE_DB)
-    cursor = conn.cursor()
-    query = "INSERT INTO tests (users_id, level) VALUES (?, ?);"
-    args = (session["user_id"], int(request.args.get("level")),)
-    print("1"+"="*10 + "GOT ARGS: " + str(args) + "="*10)
-    cursor.execute("BEGIN TRANSACTION;")
-    print("2"+"="*10 + "TRANSACTION BEGINS" + "="*10)
-    cursor.execute(query, args)
-    print("3"+"="*10 + "TEST QUERY EXECUTED" + "="*10)
-    tests_id = cursor.lastrowid
-    print("4"+"="*10 + "lastrowid:" + str(tests_id) + "="*10)
-    #test = generate_test(int(request.args.get("level")), int(request.args.get("questions")))
-    test = generate_test()
-    print("5"+"="*10 + "TEST GENERATED" + "="*10)
-    print("6"+"="*10 + str(test) + "="*10)
-    query = "INSERT INTO tests (users_id, level) VALUES (?, ?);"
-    args = prepare_test_for_sql(test, session["user_id"], tests_id, int(request.args.get("time")))
-    cursor.executemany(query, args)
-    print("7"+"="*10 + "EXECUTED MANY" + "="*10)
-    cursor.execute("COMMIT;")
-    closing(cursor)
-    closing(conn)
-    print("8"+"="*10 + "COMMITED" + "="*10)
-    session["tests_id"] = tests_id
-    return render_template("generate_test.html", test=test)"""
-
+        return jsonify(render_template("generate_test.html", test=test))
 
     with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
         with closing(conn.cursor()) as cursor: # auto-closes
             query = "INSERT INTO tests (users_id, level) VALUES (?, ?);"
             args = (session["user_id"], int(request.args.get("level")),)
-            print("="*10 + "GOT ARGS: " + str(args) + "="*10)
             cursor.execute("BEGIN TRANSACTION;")
-            print("="*10 + "TRANSACTION BEGINS" + "="*10)
             cursor.execute(query, args)
-            print("="*10 + "TEST QUERY EXECUTED" + "="*10)
             tests_id = cursor.lastrowid
-            print("="*10 + "lastrowid:" + str(tests_id) + "="*10)
             test = generate_tests(int(request.args.get("level")), int(request.args.get("questions")))
-            print("="*10 + "TEST GENERATED" + "="*10)
-            print("="*10 + str(test) + "="*10)
-            query = "INSERT INTO examples (users_id, tests_id, number, example, eval, timegiven) VALUES (?, ?, ?, ?, ?, ?);"
+            query = "INSERT INTO examples (users_id, tests_id, number, example, eval, timegiven) VALUES (:users_id, :tests_id, :number, :example, :eval, :timegiven);"
             args = prepare_test_for_sql(test, session["user_id"], tests_id, int(request.args.get("time")))
             cursor.executemany(query, args)
-            print("="*10 + "EXECUTED MANY" + "="*10)
             cursor.execute("COMMIT;")
-            print("="*10 + "COMMITED" + "="*10)
             session["tests_id"] = tests_id
-            return render_template("generate_test.html", test=test)
-            #return jsonify(test)
-    
-    return False
-    """
-    rowid = db_execute(SQLITE_DB, "INSERT INTO tests (users_id, level) VALUES (?, ?)", (session["user_id"], request.args.get("level"),))
-    test = generate_test(level=request.args.get("level"), n=request.args.get("questions"))
-    test_sql = prepare_test_for_sql(test, users_id=session["user_id"], tests_id=rowid, request.args.get("time"))
-    db_executemany(SQLITE_DB, "INSERT INTO examples (users_id, tests_id, level, number, example, eval, timegiven) VALUES (?, ?, ?, ?, ?, ?)", test_sql)
-    return jsonify(test)
-    """
+            return jsonify(render_template("generate_test.html", test=args))
 
 
 @app.route("/example_answer", methods=["POST"])
 def example_answer():
-    # SQL insert and return true
-    return True
+    # SQL UPDATE and return (eval-answer) difference
+    db_execute(SQLITE_DB, 
+               "UPDATE examples SET answer = ? timespent = ? WHERE users_id = ? AND tests_id = ? AND number = ? AND timespent = 0;",
+               (request.form.get("answer"), request.form.get("timespent"), session["users_id"], session["tests_id"], request.form.get("number"),))
+    answer = db_execute(SQLITE_DB, "SELECT eval, answer FROM examples WHERE users_id = ? AND tests_id = ? AND number = ?", (session["users_id"], session["tests_id"], request.form.get("number"),))
+    return jsonify(answer)
 
 
 @app.route("/scores", methods=["GET"])

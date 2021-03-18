@@ -9,22 +9,22 @@
     <div class="container-fluid">
         <h3>Measuring your reaction, accuracy and precision</h3>
         <p>Are you ready for a quick and easy and math's test?</p>
-        <form action="/generate_test" method="get" class="row g-1">
-            <div class="col-md-3">
-                <input class="form-control" name="level" autocomplete="off" placeholder="Level" type="number" value="3">
-            </div>
-            <div class="col-md-3">
-                <input class="form-control" name="questions" autocomplete="off" placeholder="Num of examples" type="number" value="10">
-            </div>
-            <div class="col-md-3">
-                <input class="form-control" name="time" autocomplete="off" placeholder="Time for each" type="number" value="10">
-            </div>
-            <div class="col-md-3">
-                <button id="generateTest" class="btn-primary form-control" type="submit">I'm ready!</button>
+        <form action="/generate_test" method="get" id="generateTest">
+            <div class="row row-cols-lg-auto g-1 justify-content-center">
+                <div class="col-lg-3">
+                    <input class="form-control" name="level" autocomplete="off" placeholder="Level" type="number" value="3">
+                </div>
+                <div class="col-lg-3">
+                    <input class="form-control" name="questions" autocomplete="off" placeholder="Num of examples" type="number" value="10">
+                </div>
+                <div class="col-lg-3">
+                    <input class="form-control" name="time" autocomplete="off" placeholder="Time for each" type="number" value="10">
+                </div>
+                <div class="col-lg-0">
+                    <button class="btn-primary form-control" type="submit">I'm ready!</button>
+                </div>
             </div>
         </form>
         <div class="container-fluid" id="test"></div>
     </div>
-    
-    
 {% endblock %}
