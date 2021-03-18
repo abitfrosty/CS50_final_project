@@ -12,13 +12,22 @@
         <form action="/generate_test" method="get" id="generateTest">
             <div class="row row-cols-lg-auto g-1 justify-content-center">
                 <div class="col-lg-3">
-                    <input class="form-control" name="level" autocomplete="off" placeholder="Level" type="number" value="3">
+                    <div class="input-group">
+                        <div class="input-group-text">Level</div>
+                        <input class="form-control" name="level" autocomplete="off" placeholder="Level" type="number" value="3">
+                    </div>
                 </div>
                 <div class="col-lg-3">
-                    <input class="form-control" name="questions" autocomplete="off" placeholder="Num of examples" type="number" value="10">
+                    <div class="input-group">
+                        <div class="input-group-text">Examples</div>
+                        <input class="form-control" name="examples" autocomplete="off" placeholder="Num of examples" type="number" value="10">
+                    </div>
                 </div>
                 <div class="col-lg-3">
-                    <input class="form-control" name="time" autocomplete="off" placeholder="Time for each" type="number" value="10">
+                    <div class="input-group">
+                        <div class="input-group-text">Time (ms)</div>
+                        <input class="form-control" name="time" autocomplete="off" placeholder="Time (milliseconds)" type="number" value="10000">
+                    </div>
                 </div>
                 <div class="col-lg-0">
                     <button class="btn-primary form-control" type="submit">I'm ready!</button>

@@ -1,4 +1,9 @@
 {# This whole document is included on request into 'tests.html' #}
+<div class="hidden">
+    <input id="exampleTimeGiven" value="{{ test[0].timegiven }}" type="hidden">
+    <input id="exampleStartIndex" value="{{ test[0].number }}" type="hidden">
+    <input id="exampleCount" value="{{ test | length }}" type="hidden">
+</div>
 <div class="container-fluid">Total time: <span id="totalTime"></span></div>
 {% for example in test %}
 <form action="/example_answer" method="post" id="example{{ example.number }}">
@@ -21,7 +26,7 @@
             </div>
         </div>
         <div class="col-lg-0">
-            <button class="btn btn-primary" type="submit" tabindex="-1">Next ({{ example.timegiven }})</button>
+            <button class="btn btn-primary" type="submit" tabindex="-1">Next</button>
         </div>
         <div class="col-lg-1">Example time: <span id="exampleTime{{ example.number }}"></span></div>
     </div>

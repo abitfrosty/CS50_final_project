@@ -230,7 +230,7 @@ def generate_test():
             cursor.execute("BEGIN TRANSACTION;")
             cursor.execute(query, args)
             tests_id = cursor.lastrowid
-            test = generate_tests(int(request.args.get("level")), int(request.args.get("questions")))
+            test = generate_tests(int(request.args.get("level")), int(request.args.get("examples")))
             query = "INSERT INTO examples (users_id, tests_id, number, example, eval, timegiven) VALUES (:users_id, :tests_id, :number, :example, :eval, :timegiven);"
             args = prepare_test_for_sql(test, session["user_id"], tests_id, int(request.args.get("time")))
             cursor.executemany(query, args)
@@ -242,11 +242,15 @@ def generate_test():
 @app.route("/example_answer", methods=["POST"])
 def example_answer():
     # SQL UPDATE and return (eval-answer) difference
+    print(request, request.form)
     db_execute(SQLITE_DB, 
-               "UPDATE examples SET answer = ? timespent = ? WHERE users_id = ? AND tests_id = ? AND number = ? AND timespent = 0;",
-               (request.form.get("answer"), request.form.get("timespent"), session["users_id"], session["tests_id"], request.form.get("number"),))
-    answer = db_execute(SQLITE_DB, "SELECT eval, answer FROM examples WHERE users_id = ? AND tests_id = ? AND number = ?", (session["users_id"], session["tests_id"], request.form.get("number"),))
-    return jsonify(answer)
+               "UPDATE examples SET answer = ?, timespent = ? WHERE users_id = ? AND tests_id = ? AND number = ?;--AND timespent = 0;",
+               (request.form.get("answer"), request.form.get("timespent"), session["user_id"], session["tests_id"], request.form.get("number"),))
+    example = db_execute(SQLITE_DB, "SELECT CAST(eval AS INT) AS eval, CAST(answer AS INT) AS answer FROM examples WHERE users_id = ? AND tests_id = ? AND number = ?;", (session["user_id"], session["tests_id"], request.form.get("number"),))
+    example["eval"] = int(example["eval"])
+    example["asnwer"] = int(example["answer"])
+    print(example)
+    return jsonify(example)
 
 
 @app.route("/scores", methods=["GET"])
