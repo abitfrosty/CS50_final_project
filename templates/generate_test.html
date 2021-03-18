@@ -1,11 +1,11 @@
 {# This whole document is included on request into 'tests.html' #}
 <div class="container-fluid">Total time: <span id="totalTime"></span></div>
 {% for example in test %}
-<form action="/example_answer" method="post">
+<form action="/example_answer" method="post" id="example{{ example.number }}">
     <div class="row row-cols-lg-auto g-1 justify-content-center">
         <div class="col-lg-2">
             <div class="input group">
-                <input autocomplete="off" readonly tabindex="-1" class="form-control" name="example" type="text" value="{{ example.example }}">
+                <input autocomplete="off" readonly tabindex="-1" class="form-control text-center" name="example" type="text" value="{{ example.example }}">
                 <input value="{{ example.number }}" name="number" type="hidden">
                 <input value="{{ example.tests_id }}" name="tests_id" type="hidden">
                 <input value="0" name="timespent" type="hidden">
@@ -16,7 +16,8 @@
         </div>
         <div class="col-lg-2">
             <div class="input group">
-                <input class="form-control" autofocus name="answer" placeholder="?" type="number">
+                <input class="form-control text-center" autofocus name="answer" placeholder="?" type="number">
+                <input class="form-control text-center" value="" name="eval" hidden>
             </div>
         </div>
         <div class="col-lg-0">

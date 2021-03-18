@@ -108,6 +108,7 @@ def profile():
 # Dynamic notification system
 def dynamic_flash(message="", category="primary", closing=True):
     """
+    XMLHttpRequest
     Known categories: primary, secondary, danger, warning, info, light, dark
     Requirements: flask[flash, jsonify, render_template], JQuery, Bootstrap
     """
@@ -199,7 +200,7 @@ def register():
     if len(apology_t):
         return apology(apology_t, apology_c)
 
-    user_id = db_execute(SQLITE_DB, "INSERT INTO users (login, hash) VALUES (?, ?)", (request.form.get("login"), generate_password_hash(request.form.get("password")),))
+    user_id = db_execute(SQLITE_DB, "INSERT INTO users (login, hash) VALUES (?, ?);", (request.form.get("login"), generate_password_hash(request.form.get("password")),))
     db_execute(SQLITE_DB, "INSERT INTO profiles (users_id) VALUES (?);", (user_id,))
     session["user_id"] = user_id
     flash(u"New user's registration with id \"{0}\" was successful!".format(user_id), "info")
@@ -215,8 +216,8 @@ def tests():
 @login_required
 def generate_test():
     """
+    Dynamic html (jsonify, jinja, jquery, ajax)
     https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
-    Dynamic html (jsonify, jinja, ajax)
     """
     if "tests_id" in session:
         test = db_execute(SQLITE_DB, "SELECT users_id, tests_id, number, example, timegiven FROM examples WHERE users_id = ? AND tests_id = ?;", (session["user_id"], session["tests_id"],), False)
@@ -236,13 +237,16 @@ def generate_test():
             cursor.execute("COMMIT;")
             session["tests_id"] = tests_id
             return jsonify(render_template("generate_test.html", test=args))
-    return False
 
 
 @app.route("/example_answer", methods=["POST"])
 def example_answer():
-    # SQL insert and return true
-    return True
+    # SQL UPDATE and return (eval-answer) difference
+    db_execute(SQLITE_DB, 
+               "UPDATE examples SET answer = ? timespent = ? WHERE users_id = ? AND tests_id = ? AND number = ? AND timespent = 0;",
+               (request.form.get("answer"), request.form.get("timespent"), session["users_id"], session["tests_id"], request.form.get("number"),))
+    answer = db_execute(SQLITE_DB, "SELECT eval, answer FROM examples WHERE users_id = ? AND tests_id = ? AND number = ?", (session["users_id"], session["tests_id"], request.form.get("number"),))
+    return jsonify(answer)
 
 
 @app.route("/scores", methods=["GET"])
