@@ -109,6 +109,7 @@ def profile():
 def dynamic_flash(message="", category="primary", closing=True):
     """
     XMLHttpRequest
+    Renders template with alert and returns it as json
     Known categories: primary, secondary, danger, warning, info, light, dark
     Requirements: flask[flash, jsonify, render_template], JQuery, Bootstrap
     """
@@ -220,8 +221,12 @@ def generate_test():
     https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
     """
     if "tests_id" in session:
-        test = db_execute(SQLITE_DB, "SELECT users_id, tests_id, number, example, timegiven FROM examples WHERE users_id = ? AND tests_id = ?;", (session["user_id"], session["tests_id"],), False)
-        return jsonify(render_template("generate_test.html", test=test))
+        test = db_execute(SQLITE_DB,
+                          "SELECT users_id, tests_id, number, example, timegiven FROM examples WHERE users_id = ? AND tests_id = ? AND timespent = 0;",
+                          (session["user_id"], session["tests_id"],),
+                          False)
+        if test is not None and len(test):
+            return jsonify(render_template("generate_test.html", test=test))
 
     with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
         with closing(conn.cursor()) as cursor: # auto-closes
@@ -242,14 +247,10 @@ def generate_test():
 @app.route("/example_answer", methods=["POST"])
 def example_answer():
     # SQL UPDATE and return (eval-answer) difference
-    print(request, request.form)
     db_execute(SQLITE_DB, 
                "UPDATE examples SET answer = ?, timespent = ? WHERE users_id = ? AND tests_id = ? AND number = ?;--AND timespent = 0;",
                (request.form.get("answer"), request.form.get("timespent"), session["user_id"], session["tests_id"], request.form.get("number"),))
     example = db_execute(SQLITE_DB, "SELECT CAST(eval AS INT) AS eval, CAST(answer AS INT) AS answer FROM examples WHERE users_id = ? AND tests_id = ? AND number = ?;", (session["user_id"], session["tests_id"], request.form.get("number"),))
-    example["eval"] = int(example["eval"])
-    example["asnwer"] = int(example["answer"])
-    print(example)
     return jsonify(example)
 
 
