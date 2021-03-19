@@ -4,7 +4,7 @@
     <input id="exampleStartIndex" value="{{ test[0].number }}" type="hidden">
     <input id="exampleCount" value="{{ test | length }}" type="hidden">
 </div>
-<div class="container-fluid mt-5 mb-5">Total time: <span id="totalTime"></span> seconds</div>
+<div class="container mt-5 mb-5">Total time: <span id="totalTime"></span> seconds</div>
 {% for example in test %}
 <form action="/example_answer" method="post" id="example{{ example.number }}">
     <div class="row row-cols-lg-auto g-1 mb-1 justify-content-center">
@@ -28,7 +28,8 @@
         <div class="col-lg-1">
             <button class="btn btn-primary" type="submit" tabindex="-1">Next</button>
         </div>
-        <div class="col-lg-1"><p class="pb-2 pt-2 m-0"><span id="exampleTime{{ example.number }}"></span></p></div>
+        <div class="col-lg-1"><p class="pb-2 pt-2 m-0"><span id="exampleTime{{ example.number }}" hidden></span></p></div>
     </div>
 </form>
 {% endfor %}
+<h4 class="mt-5" hidden>The test is finished</h4>

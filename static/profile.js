@@ -33,17 +33,19 @@ function listener() {
             update(submitForm, submitForm.elements[submitForm.length-2]);
         });
     }
-    
-    function sleep(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
-    }
-    
+        
     function alertTimer() {
         //.fadeTo(3000, 0)
         $(".alert").first().hide().slideDown(500).delay(4000).slideUp(200, function(){
             $(this).remove(); 
         });
     }
+    
+    $('#formUpdatePassword').on('submit', function() {
+        $(this).each(function() {
+             this.reset();
+        });
+    });
 }
 
 

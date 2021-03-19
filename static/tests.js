@@ -58,10 +58,10 @@ function listener() {
         }
         const len = myForms.length;
         myForms.forEach(function(item, index, array) {
-                //let i = index+1;
                 item.on('submit', function(evt) {
                 evt.preventDefault();
                 $('#example'+(index+1)+' input[name="timespent"]').attr("value", $('#exampleTime'+(index+1))[0].textContent);
+                updateExampleTime(index+1);
                 $.ajax({
                     async: true,
                     url: item[0].action,
@@ -70,10 +70,9 @@ function listener() {
                     success: function(response) {
                         $('#example'+(index+1)+' input[name="eval"]').attr("value", response['eval'])
                         disableForm($('#example'+(index+1))[0]);
-                        
-                        updateExampleTime(index+1);
                         if (index+1 >= array.length) {
                             clearInterval(globalTimer);
+                            testFinished();
                         } else {
                             startExampleTime();
                             hideExample(index+2, false);
@@ -117,7 +116,7 @@ function listener() {
           success: function(response) {
             if (response.length) {
                 $("#test").append(response);
-                timeGiven = parseInt($("#exampleTimeGiven")[0].value, 10);
+                timeGiven = parseInt($("#exampleTimeGiven")[0].value, 10)/1000;
                 let exampleCount = parseInt($("#exampleCount")[0].value, 10);
                 let index = parseInt($("#exampleStartIndex")[0].value, 10);
                 disableForm(form);
@@ -133,6 +132,31 @@ function listener() {
             console.log("ERROR", e);
           }
         });
+    }
+
+    function testFinished() {
+    
+        $('h4[hidden]')[0].removeAttribute('hidden');
+        
+        const exampleCount = parseInt($("#exampleCount")[0].value, 10);
+        const index = parseInt($("#exampleStartIndex")[0].value, 10);
+        for (i=index;i<=exampleCount;i++){
+            $('#exampleTime'+i)[0].removeAttribute('hidden');
+        }
+        [...$('input[name="eval"]')].forEach(function(item,idx){
+            var answer = item.parentElement.querySelector('input[name="answer"]');
+            if (parseInt(item.value,10)-parseInt(answer.value,10)) {
+                answer.style.backgroundColor="#faa";
+            } else {
+                answer.style.backgroundColor="#afa";
+            }
+        });
+        /*
+        <h4 hidden>Test is finished</h4>
+        <input class="form-control text-center" value="" name="eval" type="number" hidden>
+        <p class="pb-2 pt-2 m-0"><span id="exampleTime{{ example.number }}" hidden></span></p>
+        timeGiven-<input value="0" name="timespent" type="hidden">
+        */
     }
 
     $('#generateTest').on('submit', function (evt) {
