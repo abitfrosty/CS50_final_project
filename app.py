@@ -256,6 +256,7 @@ def example_answer():
 
 @app.route("/scores", methods=["GET"])
 def scores():
+    
     return render_template("scores.html")
 
 
