@@ -5,7 +5,8 @@ from werkzeug.exceptions import default_exceptions, HTTPException, InternalServe
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from helpers import apology, login_required, db_execute, usd
-from tests import generate_tests, prepare_test_for_sql
+#from tests import generate_tests, prepare_test_for_sql
+from tests import Test
 #from datetime import datetime
 import re
 import sqlite3
@@ -76,7 +77,7 @@ def login():
             return apology("must provide password", 403)
 
         row = db_execute(SQLITE_DB,
-                         "SELECT users_temp.id AS id, users_temp.hash AS hash, profiles.name AS name FROM (SELECT id, hash FROM users WHERE login = ?) AS users_temp LEFT JOIN profiles ON users_temp.id = profiles.users_id;",
+                         "SELECT user_temp.id AS id, user_temp.hash AS hash, profile.name AS name FROM (SELECT id, hash FROM user WHERE login = ?) AS user_temp LEFT JOIN profile ON user_temp.id = profile.user_id;",
                          (request.form.get("login"),))
             
         # Ensure login exists and password is correct
@@ -96,15 +97,6 @@ def login():
     return render_template("login.html")
 
 
-@app.route("/profile", methods=["GET"])
-@login_required
-def profile():
-    """User's profile"""
-    profile = db_execute(SQLITE_DB, "SELECT * FROM profiles WHERE users_id = ?;", (session["user_id"],))
-    profile["gender_list"] = GENDER_LIST
-    return render_template("profile.html", profile=profile)
-
-
 # Dynamic notification system
 def dynamic_flash(message="", category="primary", closing=True):
     """
@@ -114,49 +106,58 @@ def dynamic_flash(message="", category="primary", closing=True):
     Requirements: flask[flash, jsonify, render_template], JQuery, Bootstrap
     """
     flash(message, category)
-    return jsonify(render_template(("generate_notifications.html"), with_closing=closing))
+    return jsonify(render_template(("notifications.html"), with_closing=closing))
 
 
-@app.route("/update_name", methods=["POST"])
+@app.route("/profile", methods=["GET"])
 @login_required
-def update_name():
-    db_execute(SQLITE_DB, "UPDATE profiles SET name = ? WHERE users_id = ?;", (request.form.get("name"), session["user_id"],))
-    session["user_name"] = request.form.get("name")
-    return dynamic_flash(u"Good to see you, {0}!".format(session["user_name"]),"primary")
+def profile():
+    """User's profile"""
+    profile = db_execute(SQLITE_DB, "SELECT * FROM profile WHERE user_id = ?;", (session["user_id"],))
+    profile["gender_list"] = GENDER_LIST
+    return render_template("profile.html", profile=profile)
 
 
-@app.route("/update_profile", methods=["POST"])
+@app.route("/profile_update", methods=["POST"])
 @login_required
-def update_profile():
+def profile_update():
     if request.form.get("gender") is not None and request.form.get("gender") not in GENDER_LIST:
         return apology("Gender was not recognized!", 403)
         
     data = request.form.to_dict()
     params = []
-    query = "UPDATE profiles SET "
+    query = "UPDATE profile SET "
     for k, v in data.items():
         query += k + " = ?, "
         params.append(v)
     params.append(session["user_id"])
     query = query[:-2]
-    query += " WHERE users_id = ?;"
+    query += " WHERE user_id = ?;"
 
     db_execute(SQLITE_DB, query, params)
     """ SQL Query sample
     row = db_execute(SQLITE_DB, 
-                     "UPDATE profiles SET gender = ?, birthdate = ?, education = ?, bio = ? WHERE users_id = ?;",
+                     "UPDATE profile SET gender = ?, birthdate = ?, education = ?, bio = ? WHERE user_id = ?;",
                      (request.form.get("gender"),request.form.get("birthdate"),request.form.get("education"),request.form.get("bio"),session["user_id"],))
     """
     
     return dynamic_flash(u"Profile update was successful!", "info")
 
 
-@app.route("/update_password", methods=["POST"])
+@app.route("/name_update", methods=["POST"])
 @login_required
-def update_password():
+def name_update():
+    db_execute(SQLITE_DB, "UPDATE profile SET name = ? WHERE user_id = ?;", (request.form.get("name"), session["user_id"],))
+    session["user_name"] = request.form.get("name")
+    return dynamic_flash(u"Good to see you, {0}!".format(session["user_name"]),"primary")
+
+
+@app.route("/password_update", methods=["POST"])
+@login_required
+def password_update():
     """Change password"""
     if request.form.get("password") == request.form.get("confirmation"):
-        row = db_execute(SQLITE_DB, "UPDATE users SET hash = ? WHERE id = ?;", (generate_password_hash(request.form.get("password")), session["user_id"],))
+        row = db_execute(SQLITE_DB, "UPDATE user SET hash = ? WHERE id = ?;", (generate_password_hash(request.form.get("password")), session["user_id"],))
         return dynamic_flash(u"Your password has been changed successfully!", "info")
     else:
         return dynamic_flash(u"Password and confirmation did not match!", "danger")
@@ -194,15 +195,15 @@ def register():
     if len(apology_t):
         return apology(apology_t, apology_c)
 
-    row = db_execute(SQLITE_DB, "SELECT * FROM users WHERE login = ?", (request.form.get("login"),))
+    row = db_execute(SQLITE_DB, "SELECT * FROM user WHERE login = ?", (request.form.get("login"),))
     if row is not None:
         apology_t = "login already exists"
 
     if len(apology_t):
         return apology(apology_t, apology_c)
 
-    user_id = db_execute(SQLITE_DB, "INSERT INTO users (login, hash) VALUES (?, ?);", (request.form.get("login"), generate_password_hash(request.form.get("password")),))
-    db_execute(SQLITE_DB, "INSERT INTO profiles (users_id) VALUES (?);", (user_id,))
+    user_id = db_execute(SQLITE_DB, "INSERT INTO user (login, hash) VALUES (?, ?);", (request.form.get("login"), generate_password_hash(request.form.get("password")),))
+    db_execute(SQLITE_DB, "INSERT INTO profile (user_id) VALUES (?);", (user_id,))
     session["user_id"] = user_id
     flash(u"New user's registration with id \"{0}\" was successful!".format(user_id), "info")
     return redirect("/")
@@ -213,44 +214,79 @@ def tests():
     return render_template("tests.html")
 
 
-@app.route("/generate_test", methods=["GET"])
+@app.route("/test_start", methods=["GET"])
 @login_required
-def generate_test():
+def test_start():
     """
     Dynamic html (jsonify, jinja, jquery, ajax)
     https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
     """
-    if "tests_id" in session:
+    # Can be soon moved to /test_continue
+    if "test_id" in session:
         test = db_execute(SQLITE_DB,
-                          "SELECT users_id, tests_id, number, example, timegiven FROM examples WHERE users_id = ? AND tests_id = ? AND timespent = 0;",
-                          (session["user_id"], session["tests_id"],),
+                          "SELECT example_id, ROW_NUMBER() OVER (ORDER BY example_id) AS number, example, answer, timegiven, timespent FROM results WHERE user_id = ? AND test_id = ?;",
+                          (session["user_id"], session["test_id"],),
                           False)
         if test is not None and len(test):
-            return jsonify(render_template("generate_test.html", test=test))
-
+            return jsonify(render_template("test_start.html", test=test))
+    
+    # Part /test_start
     with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
         with closing(conn.cursor()) as cursor: # auto-closes
-            query = "INSERT INTO tests (users_id, level) VALUES (?, ?);"
+            query = "INSERT INTO test (user_id, level) VALUES (?, ?);"
             args = (session["user_id"], int(request.args.get("level")),)
             cursor.execute("BEGIN TRANSACTION;")
             cursor.execute(query, args)
-            tests_id = cursor.lastrowid
-            test = generate_tests(int(request.args.get("level")), int(request.args.get("examples")))
-            query = "INSERT INTO examples (users_id, tests_id, number, example, eval, timegiven) VALUES (:users_id, :tests_id, :number, :example, :eval, :timegiven);"
-            args = prepare_test_for_sql(test, session["user_id"], tests_id, int(request.args.get("time")))
+            test_id = cursor.lastrowid
+            test = ""#generate_tests(int(request.args.get("level")), int(request.args.get("example")))
+            query = "INSERT INTO example (user_id, test_id, number, example, eval, timegiven) VALUES (:user_id, :test_id, :number, :example, :eval, :timegiven);"
+            args = ""#prepare_test_for_sql(test, session["user_id"], test_id, int(request.args.get("time")))
             cursor.executemany(query, args)
             cursor.execute("COMMIT;")
-            session["tests_id"] = tests_id
-            return jsonify(render_template("generate_test.html", test=args))
+            session["test_id"] = test_id
+            return jsonify(render_template("test_start.html", test=args))
+
+
+"""
+@app.route("/test_generate", methods=["GET"])
+@login_required
+def test_generate():
+"""
+    #Dynamic html (jsonify, jinja, jquery, ajax)
+    #https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
+"""
+    if "test_id" in session:
+        test = db_execute(SQLITE_DB,
+                          "SELECT user_id, test_id, number, example, timegiven FROM example WHERE user_id = ? AND test_id = ? AND timespent = 0;",
+                          (session["user_id"], session["test_id"],),
+                          False)
+        if test is not None and len(test):
+            return jsonify(render_template("test_generate.html", test=test))
+
+    with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
+        with closing(conn.cursor()) as cursor: # auto-closes
+            query = "INSERT INTO tests (user_id, level) VALUES (?, ?);"
+            args = (session["user_id"], int(request.args.get("level")),)
+            cursor.execute("BEGIN TRANSACTION;")
+            cursor.execute(query, args)
+            test_id = cursor.lastrowid
+            test = generate_tests(int(request.args.get("level")), int(request.args.get("example")))
+            query = "INSERT INTO example (user_id, test_id, number, example, eval, timegiven) VALUES (:user_id, :test_id, :number, :example, :eval, :timegiven);"
+            args = prepare_test_for_sql(test, session["user_id"], test_id, int(request.args.get("time")))
+            cursor.executemany(query, args)
+            cursor.execute("COMMIT;")
+            session["test_id"] = test_id
+            return jsonify(render_template("test_generate.html", test=args))
+"""
 
 
 @app.route("/example_answer", methods=["POST"])
 def example_answer():
     # SQL UPDATE and return (eval-answer) difference
     db_execute(SQLITE_DB, 
-               "UPDATE examples SET answer = ?, timespent = ? WHERE users_id = ? AND tests_id = ? AND number = ?;--AND timespent = 0;",
-               (request.form.get("answer"), request.form.get("timespent"), session["user_id"], session["tests_id"], request.form.get("number"),))
-    example = db_execute(SQLITE_DB, "SELECT CAST(eval AS INT) AS eval, CAST(answer AS INT) AS answer FROM examples WHERE users_id = ? AND tests_id = ? AND number = ?;", (session["user_id"], session["tests_id"], request.form.get("number"),))
+               "UPDATE example SET answer = ?, timespent = ? WHERE user_id = ? AND test_id = ? AND number = ?;--AND timespent = 0;",
+               (request.form.get("answer"), request.form.get("timespent"), session["user_id"], session["test_id"], request.form.get("number"),))
+    example = db_execute(SQLITE_DB, "SELECT CAST(eval AS INT) AS eval, CAST(answer AS INT) AS answer FROM example WHERE user_id = ? AND test_id = ? AND number = ?;", (session["user_id"], session["test_id"], request.form.get("number"),))
     return jsonify(example)
 
 

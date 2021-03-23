@@ -107,7 +107,7 @@ function listener() {
         }
     }
     
-    function generateTest(form) {
+    function testStart(form) {
         $.ajax({
           async: true,
           url: form.action,
@@ -159,9 +159,9 @@ function listener() {
         */
     }
 
-    $('#generateTest').on('submit', function (evt) {
+    $('#testStart').on('submit', function (evt) {
         evt.preventDefault();
-        generateTest(this);
+        testStart(this);
         });
 
 }

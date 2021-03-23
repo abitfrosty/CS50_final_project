@@ -1,0 +1,13 @@
+{# Dynamic notification system #}
+{% with messages = get_flashed_messages(true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class='alert alert-{{ category }} alert-dismissible fade show text-center' role='alert'>
+            {{ message }}
+            {% if with_closing %}
+            <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}

@@ -1,10 +1,9 @@
-
 function listener() {
 
     const notifications = document.getElementById('notifications');
-    rebindSubmit(document.getElementById('formUpdateName'));
-    rebindSubmit(document.getElementById('formUpdatePassword'));
-    rebindSubmit(document.getElementById('formUpdateProfile'));
+    rebindSubmit(document.getElementById('formNameUpdate'));
+    rebindSubmit(document.getElementById('formPasswordUpdate'));
+    rebindSubmit(document.getElementById('formProfileUpdate'));
     
     function update(myForm, lastInput) {
         const xhr = new XMLHttpRequest();
@@ -41,7 +40,7 @@ function listener() {
         });
     }
     
-    $('#formUpdatePassword').on('submit', function() {
+    $('#formPasswordUpdate').on('submit', function() {
         $(this).each(function() {
              this.reset();
         });
@@ -50,4 +49,3 @@ function listener() {
 
 
 document.addEventListener('DOMContentLoaded', listener);
-
