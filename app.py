@@ -109,6 +109,7 @@ def profile():
 def dynamic_flash(message="", category="primary", closing=True):
     """
     XMLHttpRequest
+    Renders template with alert and returns it as json
     Known categories: primary, secondary, danger, warning, info, light, dark
     Requirements: flask[flash, jsonify, render_template], JQuery, Bootstrap
     """
@@ -220,8 +221,12 @@ def generate_test():
     https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
     """
     if "tests_id" in session:
-        test = db_execute(SQLITE_DB, "SELECT users_id, tests_id, number, example, timegiven FROM examples WHERE users_id = ? AND tests_id = ?;", (session["user_id"], session["tests_id"],), False)
-        return jsonify(render_template("generate_test.html", test=test))
+        test = db_execute(SQLITE_DB,
+                          "SELECT users_id, tests_id, number, example, timegiven FROM examples WHERE users_id = ? AND tests_id = ? AND timespent = 0;",
+                          (session["user_id"], session["tests_id"],),
+                          False)
+        if test is not None and len(test):
+            return jsonify(render_template("generate_test.html", test=test))
 
     with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
         with closing(conn.cursor()) as cursor: # auto-closes
@@ -230,7 +235,7 @@ def generate_test():
             cursor.execute("BEGIN TRANSACTION;")
             cursor.execute(query, args)
             tests_id = cursor.lastrowid
-            test = generate_tests(int(request.args.get("level")), int(request.args.get("questions")))
+            test = generate_tests(int(request.args.get("level")), int(request.args.get("examples")))
             query = "INSERT INTO examples (users_id, tests_id, number, example, eval, timegiven) VALUES (:users_id, :tests_id, :number, :example, :eval, :timegiven);"
             args = prepare_test_for_sql(test, session["user_id"], tests_id, int(request.args.get("time")))
             cursor.executemany(query, args)
@@ -243,14 +248,15 @@ def generate_test():
 def example_answer():
     # SQL UPDATE and return (eval-answer) difference
     db_execute(SQLITE_DB, 
-               "UPDATE examples SET answer = ? timespent = ? WHERE users_id = ? AND tests_id = ? AND number = ? AND timespent = 0;",
-               (request.form.get("answer"), request.form.get("timespent"), session["users_id"], session["tests_id"], request.form.get("number"),))
-    answer = db_execute(SQLITE_DB, "SELECT eval, answer FROM examples WHERE users_id = ? AND tests_id = ? AND number = ?", (session["users_id"], session["tests_id"], request.form.get("number"),))
-    return jsonify(answer)
+               "UPDATE examples SET answer = ?, timespent = ? WHERE users_id = ? AND tests_id = ? AND number = ?;--AND timespent = 0;",
+               (request.form.get("answer"), request.form.get("timespent"), session["user_id"], session["tests_id"], request.form.get("number"),))
+    example = db_execute(SQLITE_DB, "SELECT CAST(eval AS INT) AS eval, CAST(answer AS INT) AS answer FROM examples WHERE users_id = ? AND tests_id = ? AND number = ?;", (session["user_id"], session["tests_id"], request.form.get("number"),))
+    return jsonify(example)
 
 
 @app.route("/scores", methods=["GET"])
 def scores():
+    
     return render_template("scores.html")
 
 

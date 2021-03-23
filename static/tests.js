@@ -4,107 +4,163 @@ function sleep(ms) {
 
 function listener() {
     
-    console.log("HELLO?");
+    let globalTimer;
+
+    let exampleTime = 0;
+    let timeGiven = 0;
     
-    function startExample(exampleTime=0, exampleCount=0, index=1) {
-        while (true) {
-            $('span#exampleTime'+index)[0].textContent = exampleTime;
-            delay(1000);
-            exampleTime -= 1;
-            
-        }
+    function updateExampleTime(index) {
+        et = Date.now()-exampleTime;
+        $('#exampleTime'+index)[0].textContent = et/1000+' ms';
+        $('#example'+index+' input[name="timespent"]').attr("value", et);
+    }
+    
+    function startExampleTime() {
+        exampleTime = Date.now();
+    }
+    
+    function startGlobalTime() {
+        globalTime = Date.now();
+        globalTimer = setInterval(()=>{
+            $('#totalTime')[0].textContent = ((Date.now()-globalTime)/1000).toFixed(1);
+            }, 100);
+    }
+    
+    function startTimers(index) {
+        startGlobalTime();
+        startExampleTime();
     }
 
-    function startTotal(totalTime=0) {
-        while (true) {
-            $('span#totalTime')[0].textContent = totalTime;
-            delay(1000);
-            totalTime += 1;
+    function disableForm(form, elements=[], disable=true) {
+        if (!elements instanceof Array) {
+            return;
         }
+        if (!elements.length) {
+            elements = ['input','label','select','textarea','button','fieldset','legend','datalist','output','option','optgroup'];
+        }
+        elements.forEach(function(element, index) {
+            [...form.getElementsByTagName(element)].forEach(function(item, idx) {
+                if (disable) {
+                    item.setAttribute("disabled","");
+                } else {
+                    item.removeAttribute("disabled");
+                }
+            });
+        });
     }
 
-    function startTimers(totalTime=0, exampleTime=0, exampleCount=0, index=1) {
-        //startTotal(totalTime);
-        //startExample(exampleTime, exampleCount, index);
-    }
 
     function rebindSubmit(index, exampleCount) {
-        for (i=index, i-index<exampleCount, i++) {
-            $('#example'+index).on('submit', function(evt) {
+    
+        var myForms = [];
+        for (i=index; i<=exampleCount; i++) {
+            myForms.push($('#example'+i));
+        }
+        const len = myForms.length;
+        myForms.forEach(function(item, index, array) {
+                item.on('submit', function(evt) {
                 evt.preventDefault();
-                this.$('input[name="timespent"]').attr("value", this.$('span#exampleTime'+index)[0].textContent);
+                $('#example'+(index+1)+' input[name="timespent"]').attr("value", $('#exampleTime'+(index+1))[0].textContent);
+                updateExampleTime(index+1);
                 $.ajax({
                     async: true,
-                    url: this.action,
-                    type: this.method,
-                    data: this.serialize(),
+                    url: item[0].action,
+                    type: item[0].method,
+                    data: item.serialize(),
                     success: function(response) {
-                        this.$('input[name="eval"]').attr("value", response.eval)
-                        this.prop("disabled", true);
-                        // TODO Stop timer
+                        $('#example'+(index+1)+' input[name="eval"]').attr("value", response['eval'])
+                        disableForm($('#example'+(index+1))[0]);
+                        if (index+1 >= array.length) {
+                            clearInterval(globalTimer);
+                            testFinished();
+                        } else {
+                            startExampleTime();
+                            hideExample(index+2, false);
+                            focusExample(index+2);
+                        }
+                        
                     },
                     error: function(e) {
                       console.log("ERROR", e);
-                      // Handle error
                     }
                 });
             });
-        }
+        });
+    }
+        
+
+    function focusExample(index) {
+        $('#example'+index+' input[name="answer"]')[0].focus();
     }
 
+    function hideExample(index, hide=true) {
+        $('#example'+index).attr("hidden", hide);
+    }
+    
     function hideExamples(index, exampleCount) {
-        for (i=index, i<exampleCount, i++) {
-            $('#example'+index).attr("hidden", true)
+        for (i=index; i<=exampleCount; i++) {
+            hideExample(i, true);
+            if (i == exampleCount) {
+                const button = $('#example'+i+' :submit');
+                button[0].innerText = button[0].innerText.replace('Next', 'Last');
+            }
         }
     }
+    
     function generateTest(form) {
-        let totalTime = 0;
-        let exampleTime = 0;
-        let index = 1;
-        exampleCount = 0;
-        /*const level = $('input[name="level"]').val();
-        const questions = $('input[name="questions"]').val();
-        const time = $('input[name="time"]').val();
-        const form = $('#generateTest');*/
-        console.log("BEFORE AJAX");
-        //console.log($('#generateTest').serialize());
         $.ajax({
           async: true,
-          url: form.attr('action'),
-          type: form.attr('method'),
-          data: form.serialize(),
-          //data: {level: level, questions: questions, time: time},
+          url: form.action,
+          type: form.method,
+          data: $(form).serialize(),
           success: function(response) {
-          console.log("SUCCESS AJAX");
             if (response.length) {
-            console.log("BEFORE .html(response)");
-            console.log(String(response));
                 $("#test").append(response);
-                console.log("AFTER .html(response)");
-                exampleTime = response.timegiven;
-                exampleCount = response.length;
-                index = response[0].number;
-                console.log("BEFORE TIMERS");
-                hideExamples(index, exampleCount);
+                timeGiven = parseInt($("#exampleTimeGiven")[0].value, 10)/1000;
+                let exampleCount = parseInt($("#exampleCount")[0].value, 10);
+                let index = parseInt($("#exampleStartIndex")[0].value, 10);
+                disableForm(form);
+                form.setAttribute("hidden","");
+                focusExample(index);
+                hideExamples(index+1, exampleCount);
                 rebindSubmit(index, exampleCount);
-                startTimers(totalTime, exampleTime, exampleCount, index);
-                console.log("AFTER TIMERS");
+                startTimers(index);
             }
-            // else
+                // else
             },
           error: function(e) {
             console.log("ERROR", e);
-            // Handle error
           }
         });
-        console.log("FUNCTION END");
+    }
+
+    function testFinished() {
+    
+        $('h4[hidden]')[0].removeAttribute('hidden');
+        
+        const exampleCount = parseInt($("#exampleCount")[0].value, 10);
+        const index = parseInt($("#exampleStartIndex")[0].value, 10);
+        for (i=index;i<=exampleCount;i++){
+            $('#exampleTime'+i)[0].removeAttribute('hidden');
+        }
+        [...$('input[name="eval"]')].forEach(function(item,idx){
+            var answer = item.parentElement.querySelector('input[name="answer"]');
+            if (parseInt(item.value,10)-parseInt(answer.value,10)) {
+                answer.style.backgroundColor="#faa";
+            } else {
+                answer.style.backgroundColor="#afa";
+            }
+        });
+        /*
+        <h4 hidden>Test is finished</h4>
+        <input class="form-control text-center" value="" name="eval" type="number" hidden>
+        <p class="pb-2 pt-2 m-0"><span id="exampleTime{{ example.number }}" hidden></span></p>
+        timeGiven-<input value="0" name="timespent" type="hidden">
+        */
     }
 
     $('#generateTest').on('submit', function (evt) {
-        console.log("CLICKED");
-        console.log("BEFORE PREVENT DEFAULT");
         evt.preventDefault();
-        console.log("AFTER PREVENT DEFAULT");
         generateTest(this);
         });
 

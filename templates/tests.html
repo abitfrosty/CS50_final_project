@@ -6,25 +6,34 @@
 
 {% block main %}
     <h2>Tests:</h2>
-    <div class="container-fluid">
+    <div class="container">
         <h3>Measuring your reaction, accuracy and precision</h3>
-        <p>Are you ready for a quick and easy and math's test?</p>
+        <h5>Are you ready for a quick and easy math's test?</h5>
         <form action="/generate_test" method="get" id="generateTest">
-            <div class="row row-cols-lg-auto g-1 justify-content-center">
+            <div class="row row-cols-lg-auto g-1 mt-5 mb-5 justify-content-center">
                 <div class="col-lg-3">
-                    <input class="form-control" name="level" autocomplete="off" placeholder="Level" type="number" value="3">
+                    <div class="input-group">
+                        <div class="input-group-text">Level</div>
+                        <input class="form-control" name="level" autocomplete="off" autofocus placeholder="Level" type="number" value="3" min="1">
+                    </div>
                 </div>
                 <div class="col-lg-3">
-                    <input class="form-control" name="questions" autocomplete="off" placeholder="Num of examples" type="number" value="10">
+                    <div class="input-group">
+                        <div class="input-group-text">Examples</div>
+                        <input class="form-control" name="examples" autocomplete="off" placeholder="Num of examples" type="number" value="10" min="1" max="100">
+                    </div>
                 </div>
                 <div class="col-lg-3">
-                    <input class="form-control" name="time" autocomplete="off" placeholder="Time for each" type="number" value="10">
+                    <div class="input-group">
+                        <div class="input-group-text">Time (ms)</div>
+                        <input class="form-control" name="time" autocomplete="off" placeholder="Time (milliseconds)" type="number" value="10000" min="1000" max="100000">
+                    </div>
                 </div>
                 <div class="col-lg-0">
                     <button class="btn-primary form-control" type="submit">I'm ready!</button>
                 </div>
             </div>
         </form>
-        <div class="container-fluid" id="test"></div>
+        <div class="container" id="test"></div>
     </div>
 {% endblock %}
