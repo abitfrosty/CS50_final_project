@@ -1,195 +1,144 @@
-from random import choices, choice, shuffle
-from math import ceil, floor
 import numpy as np
+from random import sample
+from string import digits
+from itertools import product
 
 
-class Example:
-    """Initialize with create()"""
-    def __init__(self, operator, level, difficulty, num):
-        """
-        operator is a math's operator
-        level abstract is a multiplier for formulas
-        difficulty depends on operator and is a divisor for formulas
-        num is the number of examples
-        """
-        self.operator = operator
-        self.level = level
-        self.difficulty = difficulty
-        self.num = num
-        self.uniques = set()
-        self.examples = []
-        self.generate_examples()
+def generate_numbers():
+    numbers = []
+    for number in product(digits, repeat=3):
+        numbers.append(("".join(number)).lstrip("0"))
+    numbers[0] = "0"
+    return numbers
 
-    @classmethod
-    def create(cls, operator, level, num):
-        operators = cls.get_operators()
-        if operator not in operators:
-            return None
-        return cls(operator, level, operators[operator], num)
-
-    @classmethod
-    def get_operators(cls):
-        """Dictionary of operators and difficulties chosen empirically"""
-        return {"+": 1.3, "-": 1.5, "/": 1.5, "*": 2, "**": 4}
-
-    @staticmethod
-    def formula(level, difficulty):
-        return ceil(level**2 / difficulty**2)
-
-    @staticmethod
-    def find_denominators(number):
-        denominators = []
-        for i in range(1, number+1, 1):
-            if number % i == 0:
-                denominators.append(i)
-        return denominators
-
-    @staticmethod
-    def make_choices(numbers, formula):
-        if len(numbers) == 0:
-            return 0
-        elif len(numbers) == 1:
-            return numbers[0]
-        np_numbers = np.array(numbers)
-        # Working on sample
-        percentile = np.percentile(np_numbers, min(90, 10 * formula))
-        std = np.std(np_numbers)
-        minimum = min(0, max(0, floor(percentile-std)))
-        maximum = min(len(np_numbers) - 1, ceil(percentile+std))
-        # Selecting *optimal* sample
-        scope = np_numbers[minimum:maximum + 1]
-        # Working on sample's weights
-        scope_left = scope[:ceil(len(scope)/2)]
-        i = lambda sample, population: sample if len(sample)*2 == len(population) else sample[:-1]
-        scope_right = i(scope_left, scope)[::-1]
-        weights = np.concatenate((scope_left, scope_right))
-        if sum(weights) == 0:
-            weights = np.apply_along_axis(lambda x: x+1, 0, weights)
-        return choices(scope, weights)[0]
-
-    def generate_constant(self, percent=.0):
-        p = lambda x: x + 1
-        formula = self.formula(self.level * p(percent), self.difficulty)
-        min_value = 0
-        max_value =  max(min_value, formula)
-        chosen = self.make_choices([i for i in range(min_value, max_value+1, 1)], formula)
-        return str(chosen)
-
-    def calculate_coefficient(self, percent=.0):
-        p = lambda x: x + 1
-        formula = self.formula(self.level * p(percent), self.difficulty)
-        min_value = 2   # For better variety
-        max_value = max(min_value, formula)
-        chosen = self.make_choices([i for i in range(min_value, max_value + 1, 1)], formula)
-        return chosen
-
-    def pick_denominator(self, number, percent=.0):
-        p = lambda x: x + 1
-        denominators = self.find_denominators(int(number))
-        chosen = self.make_choices(denominators, self.formula(self.level * p(percent), self.difficulty))
-        return str(chosen)
-
-    def evaluate_example(self, constants, cycle=1, coef=10):
-        while True:
-            if cycle >= (len(constants) - 1) * coef:
-                return None
-            example = self.operator.join(constants)
-            try:
-                evaled = eval(example)
-                assert int(evaled) == evaled
-                break
-            except (ZeroDivisionError, AssertionError):
-                # Right now both only in "/" operation
-                index1 = -(cycle // coef) - 2
-                index2 = -(cycle // coef) - 1
-                # ZeroDivisionError:
-                if int(constants[index1]) == 0:
-                    if int(constants[index2]) == 0:
-                        constants[index2] = self.generate_constant(cycle/coef)
-                    constants[index1] = str(int(constants[index2]) * self.calculate_coefficient(cycle/coef))
-                # AssertionError:
-                else:
-                    # Find all denominators and choose randomly according to formula weights
-                    if len(self.find_denominators(int(constants[index1]))) == 2:
-                        # This is a prime number
-                        constants[index1] = str(int(constants[index1]) + 1)
-                    constants[index2] = self.pick_denominator(constants[index1], cycle/coef)
-                cycle += 1
-        #print("example: ", example, "constants: ", constants, "operator: ", self.operator, "evaled: ", evaled)
-        return example, constants, int(evaled)
-
-    def generate_example(self):
-        constant1 = self.generate_constant()
-        constant2 = self.generate_constant()
-        example, constants, evaled = self.evaluate_example([constant1, constant2])
-        #print("example: ", example, "constants: ", constants, "operator: ", self.operator, "evaled: ", evaled)
-        num = len(self.uniques)
-        self.uniques.add((example, ','.join(constants), self.operator, evaled))
-        if num != len(self.uniques):
-            self.examples.append({
-                "level": self.level,
-                "difficulty": self.difficulty,
-                "example": example,
-                "constants": ','.join(constants),
-                "operator": self.operator,
-                "eval": evaled})
-
-    def generate_examples(self, break_point=20):
-        # breakpoint is the maximum iterations to generate examples
-        break_point = break_point if break_point > self.num else self.num
-        while len(self.examples) < self.num and break_point:
-            self.generate_example()
-            break_point -= 1
-
-
-class Test:
-    """
-    Initialize with create()
-    examples_params is a list of dictionaries
-    total is the number of the whole set of examples
-    shuffled is for shuffling examples
-    """
-    def __init__(self, examples_params, total, shuffled):
-        self.examples_params = examples_params
-        self.shuffled = shuffled
-        self.total = total
-        self.examples = []
-        self.make()
-
-    @classmethod
-    def create(cls, examples_params, total=10, shuffled=False):
-        if not cls.check_params(examples_params):
-            return None
-        return cls(examples_params, total, shuffled)
-
-    @staticmethod
-    def check_params(params):
-        for param in params:
-            if not all(example in param for example in ["operator", "level", "examples"]):
-                return False
-        return True
-
-    def make(self):
-        for params in self.examples_params:
-            self.examples.append(list(Example.create(params["operator"], params["level"], params["examples"]).examples))
-        while len(self.examples) < self.total:
-            chosen = choice(self.examples_params)
-            self.examples.append(list(Example.create(chosen["operator"], chosen["level"], chosen["examples"]).examples))
-        if self.shuffled:
-            shuffle(self.examples)
-        """
+def generate_examples_plus(numbers, examples):
+    operator = "+"
+    for number in product(numbers, repeat=2):
+        level = 0
+        example = operator.join(number)
+        evaled = eval(example)
+        if evaled <= 10:
+            if number[0] in ["1"] or number[1] in ["1"]:
+                level += 1
+            elif number[0] in ["2"] or number[1] in ["2"]:
+                level += 2
+            else:
+                level += 3
         else:
-            test = []
-            for example in self.examples:
-                test.append(sorted(example, key=lambda x: (x["operator"], x["level"])))
-            self.examples = test
-        """
+            if number[0] in ["1"] or number[1] in ["1"]:
+                level += 2
+            elif number[0] in ["10"] or number[1] in ["10"]:
+                level += 3
+            else:
+                level += 4
+        examples.append({"example": example, "level": level, "operator": operator, "eval": evaled})
+    return examples
+
+def generate_examples_minus(numbers, examples):
+    operator = "-"
+    for number in product(numbers, repeat=2):
+        level = 0
+        example = operator.join(number)
+        evaled = eval(example)
+        if evaled == 0:
+            level = 1
+        elif evaled > 0:
+            if number[0] in ["1"] or number[1] in ["1"]:
+                level += 1
+            elif number[0] in ["2"] or number[1] in ["2"]:
+                level += 2
+            else:
+                level += 3
+        else:
+            if number[0] in ["1"] or number[1] in ["1"]:
+                level += 2
+            elif number[0] in ["10"] or number[1] in ["10"]:
+                level += 3
+            else:
+                level += 4
+        examples.append({"example": example, "level": level, "operator": operator, "eval": evaled})
+    return examples
+
+def generate_examples_multi(numbers, examples):
+    operator = "*"
+    for number in product(numbers, repeat=2):
+        level = 0
+        example = operator.join(number)
+        evaled = eval(example)
+        if number[0] in ["1", "10"] or number[1] in ["1", "10"]:
+            level += 1
+        elif number[0] in ["2"] or number[1] in ["2"]:
+            if evaled <= 20:
+                level += 2
+            else:
+                level += 3
+        elif evaled <= 20 or number[0] in ["20"] or number[1] in ["20"]:
+            level += 3
+        else:
+            level += 4
+        examples.append({"example": example, "level": level, "operator": operator, "eval": evaled})
+    return examples
+
+def generate_examples_div(numbers, examples):
+    operator = "/"
+    for number in product(numbers, repeat=2):
+        level = 0
+        example = operator.join(number)
+        evaled = eval(example)
+        if evaled != int(evaled):
+            continue
+        if evaled == 1:
+            level = 1
+        elif number[0] in ["6", "7", "8", "9"] or number[1] in ["6", "7", "8", "9"]:
+            level += 4
+        elif number[0] in ["1", "10"] or number[1] in ["1", "10"]:
+            level += 1
+        elif number[0] in ["2", "3"] or number[1] in ["2", "3"]:
+            level += 2
+        elif number[0] in ["4", "5"] or number[1] in ["4", "5"]:
+            level += 3
+        else:
+            level += 4
+        examples.append({"example": example, "level": level, "operator": operator, "eval": int(evaled)})
+    return examples
+
+def generate_examples(upto=10):
+    numbers = generate_numbers()
+    examples = []
+    examples = generate_examples_plus(numbers[1:upto+1], examples)
+    examples = generate_examples_minus(numbers[1:upto+1], examples)
+    examples = generate_examples_multi(numbers[1:upto+1], examples)
+    examples = generate_examples_div(numbers[1:upto+1], examples)
+    return examples
+    
+def calculate_weights(len_examples=20, len_levels=1):
+    each_level = len_examples / len_levels
+
+    left = levels[:len_levels // 2 + len_levels % 2]
+    right = levels[:len_levels // 2][::-1]
+    left_right = np.array(left + right)
+
+    weights = np.floor(np.sqrt(np.pi * each_level * left_right))
+    coef = 1 if len_examples >= np.sum(weights) else -1
+    difference = abs(len_examples - np.sum(weights))
+    if difference:
+        weights[0] += coef
+    i = 1
+    while abs(len_examples - np.sum(weights)) > 1:
+        index = i % len(weights)
+        weights[index] += coef
+        weights[-index] += coef
+        i += 1
+    return weights
+    
+def prepare_test(examples, num):
+    len_levels = len(examples)
+    weights = calculate_weights(num, len_levels)
+    test = []
+    for idx, level in enumerate(examples):
+        chosen = sample(level, weights[idx])
+        test.append(chosen)
+    return test
 
 
-def main():
-    test = Test.create(test_params, 20)
-    for examples in test.examples:
-        print(examples)
 
-if __name__ == "__main__":
-    main()

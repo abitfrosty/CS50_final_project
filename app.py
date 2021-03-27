@@ -5,8 +5,7 @@ from werkzeug.exceptions import default_exceptions, HTTPException, InternalServe
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from helpers import apology, login_required, db_execute, usd
-#from tests import generate_tests, prepare_test_for_sql
-from tests import Test
+from tests import generate_examples, prepare_test
 #from datetime import datetime
 import re
 import sqlite3
@@ -221,33 +220,48 @@ def test_start():
     Dynamic html (jsonify, jinja, jquery, ajax)
     https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
     """
-    # Can be soon moved to /test_continue
+    
+    operator = request.agrs.get("operator")
+    levels = request.agrs.get("level")
+    num = 20
+    with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
+        with closing(conn.cursor()) as cursor: # auto-closes
+            cursor.execute("BEGIN TRANSACTION;")
+            cursor.execute("SELECT * FROM examples WHERE operator = ? AND level IN ? GROUP BY level;", (operator, levels,))
+            examples = cursor.fetchall()
+            test = prepare_test(examples, num)
+            if test is not None and len(test):
+                cursor.execute("INSERT INTO test (user_id) VALUES (?);", (session["user_id"],))
+                test_id = cursor.lastrowid
+                if test_id is not None:
+                    session["test_id"] = test_id
+                    for ex in test:
+                        ex.update({"test_id", test_id})
+                    cursor.executemany("INSERT INTO test_example (test_id, example_id) VALUES (:test_id, :example_id);", (test,))
+                    cursor.execute("COMMIT;")
+                    return jsonify(render_template("test_start.html", test=test))
+    
+    return apology("There are no available tests!", 404)
+
+
+@app.route("/test_continue", methods=["GET"])
+@login_required
+def test_continue():
+    """
+    Dynamic html (jsonify, jinja, jquery, ajax)
+    https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
+    """
     if "test_id" in session:
         test = db_execute(SQLITE_DB,
                           "SELECT example_id, ROW_NUMBER() OVER (ORDER BY example_id) AS number, example, answer, timegiven, timespent FROM results WHERE user_id = ? AND test_id = ?;",
                           (session["user_id"], session["test_id"],),
                           False)
         if test is not None and len(test):
+            
             return jsonify(render_template("test_start.html", test=test))
-    
-    # Part /test_start
-    with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
-        with closing(conn.cursor()) as cursor: # auto-closes
-            query = "INSERT INTO test (user_id, level) VALUES (?, ?);"
-            args = (session["user_id"], int(request.args.get("level")),)
-            cursor.execute("BEGIN TRANSACTION;")
-            cursor.execute(query, args)
-            test_id = cursor.lastrowid
-            test = ""#generate_tests(int(request.args.get("level")), int(request.args.get("example")))
-            query = "INSERT INTO example (user_id, test_id, number, example, eval, timegiven) VALUES (:user_id, :test_id, :number, :example, :eval, :timegiven);"
-            args = ""#prepare_test_for_sql(test, session["user_id"], test_id, int(request.args.get("time")))
-            cursor.executemany(query, args)
-            cursor.execute("COMMIT;")
-            session["test_id"] = test_id
-            return jsonify(render_template("test_start.html", test=args))
+    return apology("No tests to continue!", 404)
 
 
-"""
 @app.route("/test_generate", methods=["GET"])
 @login_required
 def test_generate():
@@ -255,38 +269,28 @@ def test_generate():
     #Dynamic html (jsonify, jinja, jquery, ajax)
     #https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
 """
-    if "test_id" in session:
-        test = db_execute(SQLITE_DB,
-                          "SELECT user_id, test_id, number, example, timegiven FROM example WHERE user_id = ? AND test_id = ? AND timespent = 0;",
-                          (session["user_id"], session["test_id"],),
-                          False)
-        if test is not None and len(test):
-            return jsonify(render_template("test_generate.html", test=test))
 
+    examples = generate_examples(20)
+    
     with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
         with closing(conn.cursor()) as cursor: # auto-closes
-            query = "INSERT INTO tests (user_id, level) VALUES (?, ?);"
-            args = (session["user_id"], int(request.args.get("level")),)
             cursor.execute("BEGIN TRANSACTION;")
-            cursor.execute(query, args)
-            test_id = cursor.lastrowid
-            test = generate_tests(int(request.args.get("level")), int(request.args.get("example")))
-            query = "INSERT INTO example (user_id, test_id, number, example, eval, timegiven) VALUES (:user_id, :test_id, :number, :example, :eval, :timegiven);"
-            args = prepare_test_for_sql(test, session["user_id"], test_id, int(request.args.get("time")))
-            cursor.executemany(query, args)
+            query = "INSERT INTO example (example, level, operator, eval) VALUES (:example, :level, :operator, :eval);"
+            cursor.executemany(query, examples)
             cursor.execute("COMMIT;")
-            session["test_id"] = test_id
-            return jsonify(render_template("test_generate.html", test=args))
-"""
+            return jsonify(render_template("test_generate.html", examples=examples))
+    return dynamic_flash(u"Couldn't generate examples!", "danger")
 
 
 @app.route("/example_answer", methods=["POST"])
 def example_answer():
     # SQL UPDATE and return (eval-answer) difference
     db_execute(SQLITE_DB, 
-               "UPDATE example SET answer = ?, timespent = ? WHERE user_id = ? AND test_id = ? AND number = ?;--AND timespent = 0;",
-               (request.form.get("answer"), request.form.get("timespent"), session["user_id"], session["test_id"], request.form.get("number"),))
-    example = db_execute(SQLITE_DB, "SELECT CAST(eval AS INT) AS eval, CAST(answer AS INT) AS answer FROM example WHERE user_id = ? AND test_id = ? AND number = ?;", (session["user_id"], session["test_id"], request.form.get("number"),))
+               "INSERT INTO result (user_id, test_id, example_id, answer, timespent) VALUES (?, ?, ?, ?, ?);",
+               (session["user_id"], session["test_id"], request.form.get("example_id"), request.form.get("answer"), request.form.get("timespent"),))
+    example = db_execute(SQLITE_DB, 
+                         "SELECT CAST(eval AS INT) AS eval FROM example WHERE example_id = ?;",
+                         (request.form.get("example_id"),))
     return jsonify(example)
 
 
@@ -312,10 +316,6 @@ def add_numbers():
     a = request.args.get("a", 0, type=int)
     b = request.args.get("b", 0, type=int)
     return jsonify(result=a + b)
-
-
-def collect_errors(*args, **kwargs):
-    pass
 
 
 def errorhandler(e):
