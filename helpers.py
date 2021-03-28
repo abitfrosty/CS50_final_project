@@ -36,6 +36,19 @@ def login_required(f):
     return decorated_function
 
 
+def admin_required(f):
+    """
+    Decorate routes to require login.
+
+    https://flask.palletsprojects.com/en/1.1.x/patterns/viewdecorators/
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if session.get("admin") is None:
+            return redirect(request.referrer)
+        return f(*args, **kwargs)
+    return decorated_function
+
 def db_execute(db, query, args=(), fetchone=True):
     """
     Auto-closing and auto-committing function for sqlite3 queries.

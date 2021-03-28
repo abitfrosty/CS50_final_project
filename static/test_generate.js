@@ -1,9 +1,7 @@
 function listener() {
 
     const notifications = document.getElementById('notifications');
-    rebindSubmit(document.getElementById('formNameUpdate'));
-    rebindSubmit(document.getElementById('formPasswordUpdate'));
-    rebindSubmit(document.getElementById('formProfileUpdate'));
+    rebindSubmit(document.getElementById('formGenerate'));
     
     function update(myForm, lastInput) {
         const xhr = new XMLHttpRequest();
@@ -38,12 +36,6 @@ function listener() {
             $(this).remove(); 
         });
     }
-    
-    $('#formPasswordUpdate').on('submit', function() {
-        $(this).each(function() {
-             this.reset();
-        });
-    });
 }
 
 

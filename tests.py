@@ -102,13 +102,13 @@ def generate_examples_div(numbers, examples):
         examples.append({"example": example, "level": level, "operator": operator, "eval": int(evaled)})
     return examples
 
-def generate_examples(upto=10):
+def generate_examples(num=10):
     numbers = generate_numbers()
     examples = []
-    examples = generate_examples_plus(numbers[1:upto+1], examples)
-    examples = generate_examples_minus(numbers[1:upto+1], examples)
-    examples = generate_examples_multi(numbers[1:upto+1], examples)
-    examples = generate_examples_div(numbers[1:upto+1], examples)
+    examples = generate_examples_plus(numbers[1:num+1], examples)
+    examples = generate_examples_minus(numbers[1:num+1], examples)
+    examples = generate_examples_multi(numbers[1:num+1], examples)
+    examples = generate_examples_div(numbers[1:num+1], examples)
     return examples
     
 def calculate_weights(len_examples=20, len_levels=1):
@@ -124,9 +124,11 @@ def calculate_weights(len_examples=20, len_levels=1):
     if difference:
         weights[0] += coef
     i = 1
-    while abs(len_examples - np.sum(weights)) > 1:
+    while abs(len_examples - np.sum(weights)):
         index = i % len(weights)
         weights[index] += coef
+        if abs(len_examples - np.sum(weights)) == 0:
+            break
         weights[-index] += coef
         i += 1
     return weights

@@ -6,3 +6,11 @@ div.inline *
 {
     display: inline;
 }
+
+#notifications {
+  position: fixed;
+  width: 100%;
+  z-index: 7000;
+  top: 0;
+}
+

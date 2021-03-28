@@ -4,8 +4,8 @@ from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from helpers import apology, login_required, db_execute, usd
-from tests import generate_examples, prepare_test
+from helpers import apology, login_required, admin_required, db_execute, usd
+from tests import generate_examples, prepare_test, calculate_weights
 #from datetime import datetime
 import re
 import sqlite3
@@ -76,7 +76,7 @@ def login():
             return apology("must provide password", 403)
 
         row = db_execute(SQLITE_DB,
-                         "SELECT user_temp.id AS id, user_temp.hash AS hash, profile.name AS name FROM (SELECT id, hash FROM user WHERE login = ?) AS user_temp LEFT JOIN profile ON user_temp.id = profile.user_id;",
+                         "SELECT user_temp.id AS id, user_temp.hash AS hash, user_temp.type AS type,profile.name AS name FROM (SELECT id, hash, type FROM user WHERE login = ?) AS user_temp LEFT JOIN profile ON user_temp.id = profile.user_id;",
                          (request.form.get("login"),))
             
         # Ensure login exists and password is correct
@@ -88,6 +88,8 @@ def login():
 
         # Remember user's name
         session["user_name"] = row["name"]
+        
+        session["admin"] = "admin" in row["type"]
 
         # Redirect user to home page
         return redirect("/")
@@ -221,15 +223,26 @@ def test_start():
     https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
     """
     
-    operator = request.agrs.get("operator")
+    operators = request.agrs.get("operator")
     levels = request.agrs.get("level")
     num = 20
+    
+    query = ""
+    args = []
+    weights = calculate_weights(num, len(levels))
+    for idx, level in enumerate(levels, start=1):
+        query += "SELECT * FROM (SELECT * FROM example WHERE level = ? AND operator IN ? ORDER BY random() LIMIT "
+        query += weights[idx-1] + ") AS level" + idx
+        query += " UNION ALL "
+        args.append(level)
+        args.append(operators)
+    query = query[:-len(" UNION ALL ")] if len(query) else ""
+    
     with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
         with closing(conn.cursor()) as cursor: # auto-closes
             cursor.execute("BEGIN TRANSACTION;")
-            cursor.execute("SELECT * FROM examples WHERE operator = ? AND level IN ? GROUP BY level;", (operator, levels,))
-            examples = cursor.fetchall()
-            test = prepare_test(examples, num)
+            cursor.execute(query, args)
+            test = cursor.fetchall()
             if test is not None and len(test):
                 cursor.execute("INSERT INTO test (user_id) VALUES (?);", (session["user_id"],))
                 test_id = cursor.lastrowid
@@ -237,7 +250,7 @@ def test_start():
                     session["test_id"] = test_id
                     for ex in test:
                         ex.update({"test_id", test_id})
-                    cursor.executemany("INSERT INTO test_example (test_id, example_id) VALUES (:test_id, :example_id);", (test,))
+                    cursor.executemany("INSERT INTO test_example (test_id, example_id) VALUES (:test_id, :example_id);", test)
                     cursor.execute("COMMIT;")
                     return jsonify(render_template("test_start.html", test=test))
     
@@ -247,13 +260,9 @@ def test_start():
 @app.route("/test_continue", methods=["GET"])
 @login_required
 def test_continue():
-    """
-    Dynamic html (jsonify, jinja, jquery, ajax)
-    https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
-    """
     if "test_id" in session:
         test = db_execute(SQLITE_DB,
-                          "SELECT example_id, ROW_NUMBER() OVER (ORDER BY example_id) AS number, example, answer, timegiven, timespent FROM results WHERE user_id = ? AND test_id = ?;",
+                          "SELECT example_id, ROW_NUMBER() OVER (ORDER BY level, example_id) AS number, example, answer, timegiven, timespent FROM results WHERE user_id = ? AND test_id = ?;",
                           (session["user_id"], session["test_id"],),
                           False)
         if test is not None and len(test):
@@ -262,29 +271,25 @@ def test_continue():
     return apology("No tests to continue!", 404)
 
 
-@app.route("/test_generate", methods=["GET"])
-@login_required
+@app.route("/test_generate", methods=["GET", "POST"])
+@admin_required
 def test_generate():
-"""
-    #Dynamic html (jsonify, jinja, jquery, ajax)
-    #https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
-"""
-
-    examples = generate_examples(20)
-    
+    if request.method == "GET":
+        return render_template("test_generate.html")
+    num = int(request.form.get("examples")) if request.form.get("examples") else 20
+    examples = generate_examples(num)
     with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
         with closing(conn.cursor()) as cursor: # auto-closes
             cursor.execute("BEGIN TRANSACTION;")
             query = "INSERT INTO example (example, level, operator, eval) VALUES (:example, :level, :operator, :eval);"
             cursor.executemany(query, examples)
             cursor.execute("COMMIT;")
-            return jsonify(render_template("test_generate.html", examples=examples))
+            return dynamic_flash(u"Examples generated successfully!", "info")
     return dynamic_flash(u"Couldn't generate examples!", "danger")
 
 
 @app.route("/example_answer", methods=["POST"])
 def example_answer():
-    # SQL UPDATE and return (eval-answer) difference
     db_execute(SQLITE_DB, 
                "INSERT INTO result (user_id, test_id, example_id, answer, timespent) VALUES (?, ?, ?, ?, ?);",
                (session["user_id"], session["test_id"], request.form.get("example_id"), request.form.get("answer"), request.form.get("timespent"),))
@@ -296,14 +301,15 @@ def example_answer():
 
 @app.route("/scores", methods=["GET"])
 def scores():
-    
-    return render_template("scores.html")
+    scores = db_execute(SQLITE_DB, "SELECT * FROM result JOIN example ON result.example_id = example.id JOIN test ON result.test_id = test.id LIMIT 100;")
+    return render_template("scores.html", scores=scores)
 
 
 @app.route("/results", methods=["GET"])
 @login_required
 def results():
-    return render_template("results.html")
+    results = db_execute(SQLITE_DB, "SELECT * FROM result JOIN example ON result.example_id = example.id JOIN test ON result.test_id = test.id WHERE result.user_id = ?;", (session["user_id"],))
+    return render_template("results.html", results=results)
 
 
 @app.route("/about", methods=["GET"])

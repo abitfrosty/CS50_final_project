@@ -109,7 +109,6 @@ function listener() {
     
     function testStart(form) {
         $.ajax({
-          async: true,
           url: form.action,
           type: form.method,
           data: $(form).serialize(),
