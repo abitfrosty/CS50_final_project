@@ -49,6 +49,13 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+
 def db_execute(db, query, args=(), fetchone=True):
     """
     Auto-closing and auto-committing function for sqlite3 queries.

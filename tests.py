@@ -111,12 +111,13 @@ def generate_examples(num=10):
     examples = generate_examples_div(numbers[1:num+1], examples)
     return examples
     
-def calculate_weights(len_examples=20, len_levels=1):
+def calculate_weights(len_examples, levels):
+    len_levels = len(levels)
     each_level = len_examples / len_levels
-
+    
     left = levels[:len_levels // 2 + len_levels % 2]
     right = levels[:len_levels // 2][::-1]
-    left_right = np.array(left + right)
+    left_right = (np.array(left + right)).astype(int)
 
     weights = np.floor(np.sqrt(np.pi * each_level * left_right))
     coef = 1 if len_examples >= np.sum(weights) else -1
@@ -131,16 +132,6 @@ def calculate_weights(len_examples=20, len_levels=1):
             break
         weights[-index] += coef
         i += 1
-    return weights
-    
-def prepare_test(examples, num):
-    len_levels = len(examples)
-    weights = calculate_weights(num, len_levels)
-    test = []
-    for idx, level in enumerate(examples):
-        chosen = sample(level, weights[idx])
-        test.append(chosen)
-    return test
-
+    return np.asarray(weights, dtype=int).tolist()
 
 

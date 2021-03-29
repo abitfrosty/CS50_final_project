@@ -4,8 +4,8 @@ from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from helpers import apology, login_required, admin_required, db_execute, usd
-from tests import generate_examples, prepare_test, calculate_weights
+from helpers import apology, login_required, admin_required, db_execute, dict_factory, usd
+from tests import generate_examples, calculate_weights
 #from datetime import datetime
 import re
 import sqlite3
@@ -131,9 +131,9 @@ def profile_update():
     for k, v in data.items():
         query += k + " = ?, "
         params.append(v)
-    params.append(session["user_id"])
-    query = query[:-2]
+    query = query[:-len(", ")]
     query += " WHERE user_id = ?;"
+    params.append(session["user_id"])
 
     db_execute(SQLITE_DB, query, params)
     """ SQL Query sample
@@ -212,7 +212,9 @@ def register():
 
 @app.route("/tests", methods=["GET"])
 def tests():
-    return render_template("tests.html")
+    levels = db_execute(SQLITE_DB, "SELECT DISTINCT level FROM example ORDER BY level;", "", False)
+    operators = db_execute(SQLITE_DB, "SELECT DISTINCT operator FROM example ORDER BY id;", "", False)
+    return render_template("tests.html", levels=levels, operators=operators)
 
 
 @app.route("/test_start", methods=["GET"])
@@ -223,36 +225,35 @@ def test_start():
     https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
     """
     
-    operators = request.agrs.get("operator")
-    levels = request.agrs.get("level")
-    num = 20
-    
+    request_args = request.args.to_dict(flat=False)
+    operators = request_args.get("operator") # Need to check if none selected
+    levels = request_args.get("level") # Need to check if none selected
+    num = int(request_args.get("examples")[0]) if request_args.get("examples") else 20
     query = ""
     args = []
-    weights = calculate_weights(num, len(levels))
+    weights = calculate_weights(num, levels)
     for idx, level in enumerate(levels, start=1):
-        query += "SELECT * FROM (SELECT * FROM example WHERE level = ? AND operator IN ? ORDER BY random() LIMIT "
-        query += weights[idx-1] + ") AS level" + idx
+        query += "SELECT * FROM (SELECT * FROM example WHERE level = ? AND operator IN (?operator?) ORDER BY random() LIMIT "
+        query += str(weights[idx-1]) + ") AS level" + str(idx)
         query += " UNION ALL "
         args.append(level)
-        args.append(operators)
+        for operator in operators:
+            args.append(operator)
+    query = query.replace("?operator?", ", ".join("?" * len(operators)))
     query = query[:-len(" UNION ALL ")] if len(query) else ""
-    
-    with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
-        with closing(conn.cursor()) as cursor: # auto-closes
+    with closing(sqlite3.connect(SQLITE_DB)) as conn:
+        conn.row_factory = dict_factory
+        with closing(conn.cursor()) as cursor:
             cursor.execute("BEGIN TRANSACTION;")
-            cursor.execute(query, args)
+            cursor.execute(query, tuple(args))
             test = cursor.fetchall()
-            if test is not None and len(test):
-                cursor.execute("INSERT INTO test (user_id) VALUES (?);", (session["user_id"],))
-                test_id = cursor.lastrowid
-                if test_id is not None:
-                    session["test_id"] = test_id
-                    for ex in test:
-                        ex.update({"test_id", test_id})
-                    cursor.executemany("INSERT INTO test_example (test_id, example_id) VALUES (:test_id, :example_id);", test)
-                    cursor.execute("COMMIT;")
-                    return jsonify(render_template("test_start.html", test=test))
+            cursor.execute("INSERT INTO test (user_id) VALUES (?);", (session["user_id"],))
+            session["test_id"] = cursor.lastrowid
+            for ex in test:
+                ex.update({"test_id": session["test_id"]})
+            cursor.executemany("INSERT INTO test_example (test_id, example_id) VALUES (:test_id, :id);", test)
+            cursor.execute("COMMIT;")
+            return jsonify(render_template("test_start.html", test=test))
     
     return apology("There are no available tests!", 404)
 
@@ -278,14 +279,16 @@ def test_generate():
         return render_template("test_generate.html")
     num = int(request.form.get("examples")) if request.form.get("examples") else 20
     examples = generate_examples(num)
-    with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
-        with closing(conn.cursor()) as cursor: # auto-closes
-            cursor.execute("BEGIN TRANSACTION;")
-            query = "INSERT INTO example (example, level, operator, eval) VALUES (:example, :level, :operator, :eval);"
-            cursor.executemany(query, examples)
-            cursor.execute("COMMIT;")
-            return dynamic_flash(u"Examples generated successfully!", "info")
-    return dynamic_flash(u"Couldn't generate examples!", "danger")
+    try:
+        with closing(sqlite3.connect(SQLITE_DB)) as conn:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute("BEGIN TRANSACTION;")
+                query = "INSERT INTO example (example, level, operator, eval) VALUES (:example, :level, :operator, :eval);"
+                cursor.executemany(query, examples)
+                cursor.execute("COMMIT;")
+                return dynamic_flash(u"Examples generated successfully!", "info")
+    except:
+        return dynamic_flash(u"Couldn't generate examples!", "danger")
 
 
 @app.route("/example_answer", methods=["POST"])
