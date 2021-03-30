@@ -9,47 +9,68 @@
     <div class="container">
         <h3>Measuring your reaction, accuracy and precision</h3>
         <h5>Are you ready for a quick and easy math's test?</h5>
-        <form action="/test_start" method="get" id="testStart">
-            <div class="row row-cols-lg-auto g-1 mt-5 mb-5 justify-content-center">
-                <div class="col-lg-3">
-                    <div class="input-group">
-                        <div class="input-group-text">Levels</div>
-                        <select class="form-select" multiple name="level">
-                            {% for level in levels %}
-                            <option {% if level.level == 1 %}selected {% endif %}value="{{ level.level }}">Level: {{ level.level }}</option>
-                            {% endfor %}
-                        </select>
+        <div class="container" id="testQuery">
+            {% if test_continue %}
+            <form action="/test_continue" method="get" id="testContinue">
+                <div class="row row-cols-lg-auto g-1 mt-5 mb-5 justify-content-center">
+                    <div class="col-lg-9">
+                        <div class="input-group">
+                            <div class="input-group-text">Tests</div>
+                            <select class="form-select" name="test_id" required>
+                                {% for test in test_continue %}
+                                <option value="{{ test.id }}">Test id: {{ test.id }}, date: {{ test.date }}, levels: {{ test.levels }}, operators: {{ test.operators }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-lg-0">
+                        <button class="btn-primary form-control" type="submit">Continue!</button>
                     </div>
                 </div>
-                <div class="col-lg-3">
-                    <div class="input-group">
-                        <div class="input-group-text">Operations</div>
-                        <select class="form-select" multiple name="operator">
-                            {% for operator in operators %}
-                            <option selected value="{{ operator.operator }}">Operation: {{ operator.operator }}</option>
-                            {% endfor %}
-                        </select>
+            </form>
+            {% endif %}
+            <form action="/test_start" method="get" id="testStart">
+                <div class="row row-cols-lg-auto g-1 mt-5 mb-5 justify-content-center">
+                    <div class="col-lg-3">
+                        <div class="input-group">
+                            <div class="input-group-text">Levels</div>
+                            <select class="form-select" multiple name="level" required>
+                                {% for level in levels %}
+                                <option {% if level.level == 1 %}selected {% endif %}value="{{ level.level }}">Level: {{ level.level }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-lg-3">
+                        <div class="input-group">
+                            <div class="input-group-text">Operations</div>
+                            <select class="form-select" multiple name="operator" required>
+                                {% for operator in operators %}
+                                <option selected value="{{ operator.operator }}">Operation: {{ operator.operator }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-lg-3">
+                        <div class="input-group">
+                            <div class="input-group-text">Examples</div>
+                            <input class="form-control" name="examples" autocomplete="off" placeholder="Num of examples" type="number" value="20" min="1" max="100">
+                        </div>
+                    </div>
+                    <!--
+                    <div class="col-lg-3">
+                        <div class="input-group">
+                            <div class="input-group-text">Time (ms)</div>
+                            <input class="form-control" name="time" autocomplete="off" placeholder="Time (milliseconds)" type="number" value="10000" min="1000" max="100000">
+                        </div>
+                    </div>
+                    -->
+                    <div class="col-lg-0">
+                        <button class="btn-primary form-control" type="submit">I'm ready!</button>
                     </div>
                 </div>
-                <div class="col-lg-3">
-                    <div class="input-group">
-                        <div class="input-group-text">Examples</div>
-                        <input class="form-control" name="examples" autocomplete="off" placeholder="Num of examples" type="number" value="20" min="1" max="100">
-                    </div>
-                </div>
-                <!--
-                <div class="col-lg-3">
-                    <div class="input-group">
-                        <div class="input-group-text">Time (ms)</div>
-                        <input class="form-control" name="time" autocomplete="off" placeholder="Time (milliseconds)" type="number" value="10000" min="1000" max="100000">
-                    </div>
-                </div>
-                -->
-                <div class="col-lg-0">
-                    <button class="btn-primary form-control" type="submit">I'm ready!</button>
-                </div>
-            </div>
-        </form>
+            </form>
+        </div>
         <div class="container" id="test"></div>
     </div>
 {% endblock %}

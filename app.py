@@ -76,7 +76,7 @@ def login():
             return apology("must provide password", 403)
 
         row = db_execute(SQLITE_DB,
-                         "SELECT user_temp.id AS id, user_temp.hash AS hash, user_temp.type AS type,profile.name AS name FROM (SELECT id, hash, type FROM user WHERE login = ?) AS user_temp LEFT JOIN profile ON user_temp.id = profile.user_id;",
+                         "SELECT user_temp.id AS id, user_temp.hash AS hash, user_temp.type AS type, profile.name AS name FROM (SELECT id, hash, type FROM user WHERE login = ?) AS user_temp LEFT JOIN profile ON user_temp.id = profile.user_id;",
                          (request.form.get("login"),))
             
         # Ensure login exists and password is correct
@@ -89,7 +89,7 @@ def login():
         # Remember user's name
         session["user_name"] = row["name"]
         
-        session["admin"] = "admin" in row["type"]
+        session["admin"] = True if (row["type"] and "admin" in row["type"]) else False
 
         # Redirect user to home page
         return redirect("/")
@@ -212,9 +212,12 @@ def register():
 
 @app.route("/tests", methods=["GET"])
 def tests():
+    test_continue = False
+    if "user_id" in session:
+        test_continue = db_execute(SQLITE_DB, "SELECT operators.test_id AS id, test.date, operators.operators, levels.levels FROM (SELECT test_id, GROUP_CONCAT(operator) AS operators FROM (SELECT DISTINCT test_id, operator FROM example JOIN (SELECT test_example.test_id, test_example.example_id FROM test_example LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id WHERE test_example.test_id IN (SELECT id FROM test WHERE user_id = :user_id) AND answer IS NULL) AS test ON example.id = test.example_id) GROUP BY test_id) AS operators JOIN (SELECT test_id, GROUP_CONCAT(level) AS levels FROM (SELECT DISTINCT test_id, level FROM example JOIN (SELECT test_example.test_id, test_example.example_id FROM test_example LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id WHERE test_example.test_id IN (SELECT id FROM test WHERE user_id = :user_id) AND answer IS NULL) AS test ON example.id = test.example_id) GROUP BY test_id) AS levels ON operators.test_id = levels.test_id JOIN test ON operators.test_id = test.id;", dict(session), False)
     levels = db_execute(SQLITE_DB, "SELECT DISTINCT level FROM example ORDER BY level;", "", False)
     operators = db_execute(SQLITE_DB, "SELECT DISTINCT operator FROM example ORDER BY id;", "", False)
-    return render_template("tests.html", levels=levels, operators=operators)
+    return render_template("tests.html", levels=levels, operators=operators, test_continue=test_continue)
 
 
 @app.route("/test_start", methods=["GET"])
@@ -261,15 +264,15 @@ def test_start():
 @app.route("/test_continue", methods=["GET"])
 @login_required
 def test_continue():
-    if "test_id" in session:
+    try:
         test = db_execute(SQLITE_DB,
-                          "SELECT example_id, ROW_NUMBER() OVER (ORDER BY level, example_id) AS number, example, answer, timegiven, timespent FROM results WHERE user_id = ? AND test_id = ?;",
-                          (session["user_id"], session["test_id"],),
+                          "SELECT test.id, test_example.example_id, example.level, example.operator FROM (SELECT id FROM test WHERE user_id = ? AND id = ?) AS test JOIN test_example ON test.id = test_example.test_id LEFT JOIN result ON test_example.example_id = result.example_id JOIN example ON test_example.example_id = example.id WHERE answer IS NULL;",
+                          (session["user_id"], request.args.get("test_id")),
                           False)
-        if test is not None and len(test):
             
-            return jsonify(render_template("test_start.html", test=test))
-    return apology("No tests to continue!", 404)
+        return jsonify(render_template("test_start.html", test=test))
+    except:
+        return apology("No tests to continue!", 404)
 
 
 @app.route("/test_generate", methods=["GET", "POST"])

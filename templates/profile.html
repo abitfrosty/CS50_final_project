@@ -39,8 +39,9 @@
             <div class="row row-cols-lg-2 g-1 mb-1 justify-content-center">
                 <div class="col-lg-1"></div>
                 <div class="col-lg-9">
-                    <div class="input group">
-                        <textarea class="form-control" name="bio" placeholder="What do you like?">{% if profile.bio %}{{ profile.bio }}{% endif %}</textarea>
+                    <div class="form-floating">
+                        <textarea class="form-control h-100" name="bio">{% if profile.bio %}{{ profile.bio }}{% endif %}</textarea>
+                        <label>What do you like?</label>
                     </div>
                 </div>
                 <div class="col-lg-1"></div>
