@@ -115,11 +115,12 @@ function listener() {
           success: function(response) {
             if (response.length) {
                 $("#test").append(response);
-                timeGiven = parseInt($("#exampleTimeGiven")[0].value, 10)/1000;
+                //timeGiven = parseInt($("#exampleTimeGiven")[0].value, 10)/1000;
+                //let index = parseInt($("#exampleStartIndex")[0].value, 10);
                 let exampleCount = parseInt($("#exampleCount")[0].value, 10);
-                let index = parseInt($("#exampleStartIndex")[0].value, 10);
+                let index = 1;
                 disableForm(form);
-                form.setAttribute("hidden","");
+                $("#testQuery")[0].setAttribute("hidden","");
                 focusExample(index);
                 hideExamples(index+1, exampleCount);
                 rebindSubmit(index, exampleCount);
@@ -137,8 +138,9 @@ function listener() {
     
         $('h4[hidden]')[0].removeAttribute('hidden');
         
+        //const index = parseInt($("#exampleStartIndex")[0].value, 10);
         const exampleCount = parseInt($("#exampleCount")[0].value, 10);
-        const index = parseInt($("#exampleStartIndex")[0].value, 10);
+        const index = 1;
         for (i=index;i<=exampleCount;i++){
             $('#exampleTime'+i)[0].removeAttribute('hidden');
         }
@@ -159,6 +161,11 @@ function listener() {
     }
 
     $('#testStart').on('submit', function (evt) {
+        evt.preventDefault();
+        testStart(this);
+        });
+    
+    $('#testContinue').on('submit', function (evt) {
         evt.preventDefault();
         testStart(this);
         });

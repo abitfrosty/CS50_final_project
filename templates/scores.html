@@ -7,35 +7,28 @@
 {% block main %}
     <div class="container-fluid">
         <h2>Scores:</h2>
-        <h3>Your standing is: 1</h3>
+        <h3>Your standing is: #</h3>
         <p>This is an average result!</p>
         <table class="table">
           <thead>
             <tr>
-              <th scope="col">#</th>
-              <th scope="col">First</th>
-              <th scope="col">Last</th>
-              <th scope="col">Handle</th>
+              <th scope="col">Rank</th>
+              <th scope="col">Name</th>
+              <th scope="col">Examples</th>
+              <th scope="col">Right answers, %</th>
+              <th scope="col">Avg Time</th>
             </tr>
           </thead>
           <tbody>
+            {% for score in scores %}
             <tr>
-              <th scope="row">1</th>
-              <td>Mark</td>
-              <td>Otto</td>
-              <td>@mdo</td>
+              <th scope="row">{{ score.rank }}</th>
+              <td>{{ score.name }}</td>
+              <td>{{ score.examples }}</td>
+              <td>{{ score.rightanswers }}</td>
+              <td>{{ score.avgtime }}</td>
             </tr>
-            <tr>
-              <th scope="row">2</th>
-              <td>Jacob</td>
-              <td>Thornton</td>
-              <td>@fat</td>
-            </tr>
-            <tr>
-              <th scope="row">3</th>
-              <td colspan="2">Larry the Bird</td>
-              <td>@twitter</td>
-            </tr>
+            {% endfor %}
           </tbody>
         </table>
     </div>

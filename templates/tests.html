@@ -9,16 +9,17 @@
     <div class="container">
         <h3>Measuring your reaction, accuracy and precision</h3>
         <h5>Are you ready for a quick and easy math's test?</h5>
-        <div class="container" id="testQuery">
+        <div class="container mt-5 mb-5" id="testQuery">
             {% if test_continue %}
+            <h6>Unfinished tests</h5>
             <form action="/test_continue" method="get" id="testContinue">
-                <div class="row row-cols-lg-auto g-1 mt-5 mb-5 justify-content-center">
+                <div class="row row-cols-lg-auto g-1 justify-content-center">
                     <div class="col-lg-9">
                         <div class="input-group">
-                            <div class="input-group-text">Tests</div>
+                            <div class="input-group-text">Test</div>
                             <select class="form-select" name="test_id" required>
                                 {% for test in test_continue %}
-                                <option value="{{ test.id }}">Test id: {{ test.id }}, date: {{ test.date }}, levels: {{ test.levels }}, operators: {{ test.operators }}</option>
+                                <option value="{{ test.id }}">id: [{{ test.id }}] date: [{{ test.date }}] levels: [{{ test.levels }}] operators: [{{ test.operators }}] examples: [{{ test.examples }}]</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -29,8 +30,9 @@
                 </div>
             </form>
             {% endif %}
+            <h6 class="mt-5">Start a new one</h5>
             <form action="/test_start" method="get" id="testStart">
-                <div class="row row-cols-lg-auto g-1 mt-5 mb-5 justify-content-center">
+                <div class="row row-cols-lg-auto g-1 justify-content-center">
                     <div class="col-lg-3">
                         <div class="input-group">
                             <div class="input-group-text">Levels</div>

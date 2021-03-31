@@ -1,7 +1,5 @@
 {# This whole document is included on request into 'tests.html' #}
 <div class="hidden">
-    <input id="exampleTimeGiven" value="{{ test[0].timegiven }}" type="hidden">
-    <input id="exampleStartIndex" value="{{ test[0].number }}" type="hidden">
     <input id="exampleCount" value="{{ test | length }}" type="hidden">
 </div>
 <div class="container mt-5 mb-5">Total time: <span id="totalTime"></span> seconds</div>
@@ -12,8 +10,9 @@
             <div class="input group">
                 <input autocomplete="off" readonly tabindex="-1" class="form-control text-center" name="example" type="text" value="{{ example.example }}">
                 <input value="{{ example.number }}" name="number" type="hidden">
+                <input value="{{ example.level }}" name="level" type="hidden">
                 <input value="{{ example.test_id }}" name="test_id" type="hidden">
-                <input value="{{ example.example_id }}" name="example_id" type="hidden">
+                <input value="{{ example.id }}" name="example_id" type="hidden">
                 <input value="0" name="timespent" type="hidden">
             </div>
         </div>

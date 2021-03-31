@@ -214,7 +214,94 @@ def register():
 def tests():
     test_continue = False
     if "user_id" in session:
-        test_continue = db_execute(SQLITE_DB, "SELECT operators.test_id AS id, test.date, operators.operators, levels.levels FROM (SELECT test_id, GROUP_CONCAT(operator) AS operators FROM (SELECT DISTINCT test_id, operator FROM example JOIN (SELECT test_example.test_id, test_example.example_id FROM test_example LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id WHERE test_example.test_id IN (SELECT id FROM test WHERE user_id = :user_id) AND answer IS NULL) AS test ON example.id = test.example_id) GROUP BY test_id) AS operators JOIN (SELECT test_id, GROUP_CONCAT(level) AS levels FROM (SELECT DISTINCT test_id, level FROM example JOIN (SELECT test_example.test_id, test_example.example_id FROM test_example LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id WHERE test_example.test_id IN (SELECT id FROM test WHERE user_id = :user_id) AND answer IS NULL) AS test ON example.id = test.example_id) GROUP BY test_id) AS levels ON operators.test_id = levels.test_id JOIN test ON operators.test_id = test.id;", dict(session), False)
+        query = """
+        SELECT 
+          operators.test_id AS id, 
+          test.date, 
+          operators.operators, 
+          levels.levels, 
+          operators.examples 
+        FROM 
+          (
+            SELECT 
+              test_id, 
+              GROUP_CONCAT(operator) AS operators, 
+              SUM(examples) AS examples 
+            FROM 
+              (
+                SELECT 
+                  test_id, 
+                  operator, 
+                  SUM(1) AS examples 
+                FROM 
+                  example 
+                  JOIN (
+                    SELECT 
+                      test_example.test_id, 
+                      test_example.example_id 
+                    FROM 
+                      test_example 
+                      LEFT JOIN result ON test_example.test_id = result.test_id 
+                      AND test_example.example_id = result.example_id 
+                    WHERE 
+                      test_example.test_id IN (
+                        SELECT 
+                          id 
+                        FROM 
+                          test 
+                        WHERE 
+                          user_id = :user_id
+                      ) 
+                      AND answer IS NULL
+                  ) AS test ON example.id = test.example_id 
+                GROUP BY 
+                  test_id, 
+                  operator 
+                ORDER BY 
+                  example.id
+              ) 
+            GROUP BY 
+              test_id
+          ) AS operators 
+          JOIN (
+            SELECT 
+              test_id, 
+              GROUP_CONCAT(level) AS levels 
+            FROM 
+              (
+                SELECT 
+                  DISTINCT test_id, 
+                  level 
+                FROM 
+                  example 
+                  JOIN (
+                    SELECT 
+                      test_example.test_id, 
+                      test_example.example_id 
+                    FROM 
+                      test_example 
+                      LEFT JOIN result ON test_example.test_id = result.test_id 
+                      AND test_example.example_id = result.example_id 
+                    WHERE 
+                      test_example.test_id IN (
+                        SELECT 
+                          id 
+                        FROM 
+                          test 
+                        WHERE 
+                          user_id = :user_id
+                      ) 
+                      AND answer IS NULL
+                  ) AS test ON example.id = test.example_id 
+                ORDER BY 
+                  level, 
+                  example.id
+              ) 
+            GROUP BY 
+              test_id
+          ) AS levels ON operators.test_id = levels.test_id 
+          JOIN test ON operators.test_id = test.id;"""
+        test_continue = db_execute(SQLITE_DB, query, dict(session), False)
     levels = db_execute(SQLITE_DB, "SELECT DISTINCT level FROM example ORDER BY level;", "", False)
     operators = db_execute(SQLITE_DB, "SELECT DISTINCT operator FROM example ORDER BY id;", "", False)
     return render_template("tests.html", levels=levels, operators=operators, test_continue=test_continue)
@@ -252,8 +339,8 @@ def test_start():
             test = cursor.fetchall()
             cursor.execute("INSERT INTO test (user_id) VALUES (?);", (session["user_id"],))
             session["test_id"] = cursor.lastrowid
-            for ex in test:
-                ex.update({"test_id": session["test_id"]})
+            for idx, ex in enumerate(test, start=1):
+                ex.update({"test_id": session["test_id"], "number": idx})
             cursor.executemany("INSERT INTO test_example (test_id, example_id) VALUES (:test_id, :id);", test)
             cursor.execute("COMMIT;")
             return jsonify(render_template("test_start.html", test=test))
@@ -265,9 +352,10 @@ def test_start():
 @login_required
 def test_continue():
     try:
+        session["test_id"] = request.args.get("test_id")
         test = db_execute(SQLITE_DB,
-                          "SELECT test.id, test_example.example_id, example.level, example.operator FROM (SELECT id FROM test WHERE user_id = ? AND id = ?) AS test JOIN test_example ON test.id = test_example.test_id LEFT JOIN result ON test_example.example_id = result.example_id JOIN example ON test_example.example_id = example.id WHERE answer IS NULL;",
-                          (session["user_id"], request.args.get("test_id")),
+                          "SELECT test.id AS test_id, test_example.example_id AS id, example.example, example.level, example.operator, ROW_NUMBER() OVER (ORDER BY example.level, example.id) AS number FROM (SELECT id FROM test WHERE user_id = :user_id AND id = :test_id) AS test JOIN test_example ON test.id = test_example.test_id LEFT JOIN result ON test_example.example_id = result.example_id JOIN example ON test_example.example_id = example.id WHERE answer IS NULL ORDER BY example.level, example.id;",
+                          dict(session),
                           False)
             
         return jsonify(render_template("test_start.html", test=test))
@@ -297,16 +385,20 @@ def test_generate():
 @app.route("/example_answer", methods=["POST"])
 def example_answer():
     db_execute(SQLITE_DB, 
-               "INSERT INTO result (user_id, test_id, example_id, answer, timespent) VALUES (?, ?, ?, ?, ?);",
-               (session["user_id"], session["test_id"], request.form.get("example_id"), request.form.get("answer"), request.form.get("timespent"),))
+               "INSERT INTO result (user_id, test_id, example_id, answer, level, timespent) VALUES (?, ?, ?, ?, ?, ?);",
+               (session["user_id"], session["test_id"], request.form.get("example_id"), request.form.get("answer"), request.form.get("level"), request.form.get("timespent"),))
     example = db_execute(SQLITE_DB, 
-                         "SELECT CAST(eval AS INT) AS eval FROM example WHERE example_id = ?;",
+                         "SELECT CAST(eval AS INT) AS eval FROM example WHERE id = ?;",
                          (request.form.get("example_id"),))
     return jsonify(example)
 
 
 @app.route("/scores", methods=["GET"])
 def scores():
+    
+    query1 = "SELECT results.user_id, name, examples, avgtime, ROW_NUMBER() OVER (ORDER BY avgtime) AS rank FROM (SELECT user_id, SUM(1) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE DATE('now')-DATE(date) <= 7 GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id WHERE examples > 10;"
+    query2 = "SELECT COUNT(*) AS examples, SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id GROUP BY user_id;"
+    
     scores = db_execute(SQLITE_DB, "SELECT * FROM result JOIN example ON result.example_id = example.id JOIN test ON result.test_id = test.id LIMIT 100;")
     return render_template("scores.html", scores=scores)
 
