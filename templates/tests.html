@@ -33,30 +33,30 @@
             <h6 class="mt-5">Start a new one</h5>
             <form action="/test_start" method="get" id="testStart">
                 <div class="row row-cols-lg-auto g-1 justify-content-center">
-                    <div class="col-lg-3">
-                        <div class="input-group">
-                            <div class="input-group-text">Levels</div>
-                            <select class="form-select" multiple name="level" required>
+                    <div class="col-lg-2">
+                        <div class="form-floating">
+                            <select class="form-select h-100" multiple name="level" required>
                                 {% for level in levels %}
                                 <option {% if level.level == 1 %}selected {% endif %}value="{{ level.level }}">Level: {{ level.level }}</option>
                                 {% endfor %}
                             </select>
+                            <label>Pick level(s):</label>
                         </div>
                     </div>
-                    <div class="col-lg-3">
-                        <div class="input-group">
-                            <div class="input-group-text">Operations</div>
-                            <select class="form-select" multiple name="operator" required>
+                    <div class="col-lg-2">
+                        <div class="form-floating">
+                            <select class="form-select h-100" multiple name="operator" required>
                                 {% for operator in operators %}
                                 <option selected value="{{ operator.operator }}">Operation: {{ operator.operator }}</option>
                                 {% endfor %}
                             </select>
+                            <label>Pick operation(s):</label>
                         </div>
                     </div>
-                    <div class="col-lg-3">
+                    <div class="col-lg-2">
                         <div class="input-group">
                             <div class="input-group-text">Examples</div>
-                            <input class="form-control" name="examples" autocomplete="off" placeholder="Num of examples" type="number" value="20" min="1" max="100">
+                            <input class="form-control" name="examples" autocomplete="off" placeholder="Num of examples" type="number" value="10" min="1" max="100">
                         </div>
                     </div>
                     <!--

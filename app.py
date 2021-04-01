@@ -5,8 +5,9 @@ from werkzeug.exceptions import default_exceptions, HTTPException, InternalServe
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from helpers import apology, login_required, admin_required, db_execute, dict_factory, usd
-from tests import generate_examples, calculate_weights
+from tests import generate_examples, calculate_weights, duplicate_examples
 #from datetime import datetime
+import json
 import re
 import sqlite3
 from contextlib import closing
@@ -42,6 +43,8 @@ GENDER_LIST = ["male", "female", "other"]
 
 # Global path to the main database for 'db_execute'
 SQLITE_DB = "project.db"
+
+PERIODS = {"today": 0, "day": 1, "week": 7, "month": 30, "year": 365, "alltime": 9999}
 
 """
 @app.template_filter('quoted')
@@ -212,7 +215,7 @@ def register():
 
 @app.route("/tests", methods=["GET"])
 def tests():
-    test_continue = False
+    test_continue = None
     if "user_id" in session:
         query = """
         SELECT 
@@ -232,7 +235,7 @@ def tests():
                 SELECT 
                   test_id, 
                   operator, 
-                  SUM(1) AS examples 
+                  COUNT(*) AS examples 
                 FROM 
                   example 
                   JOIN (
@@ -318,10 +321,10 @@ def test_start():
     request_args = request.args.to_dict(flat=False)
     operators = request_args.get("operator") # Need to check if none selected
     levels = request_args.get("level") # Need to check if none selected
-    num = int(request_args.get("examples")[0]) if request_args.get("examples") else 20
+    n_examples = int(request_args.get("examples")[0]) if request_args.get("examples") else 10
     query = ""
     args = []
-    weights = calculate_weights(num, levels)
+    weights = calculate_weights(n_examples, levels)
     for idx, level in enumerate(levels, start=1):
         query += "SELECT * FROM (SELECT * FROM example WHERE level = ? AND operator IN (?operator?) ORDER BY random() LIMIT "
         query += str(weights[idx-1]) + ") AS level" + str(idx)
@@ -337,6 +340,8 @@ def test_start():
             cursor.execute("BEGIN TRANSACTION;")
             cursor.execute(query, tuple(args))
             test = cursor.fetchall()
+            #if len(test) < n_examples:
+            #    test = duplicate_examples(test, n_examples - len(test))
             cursor.execute("INSERT INTO test (user_id) VALUES (?);", (session["user_id"],))
             session["test_id"] = cursor.lastrowid
             for idx, ex in enumerate(test, start=1):
@@ -368,8 +373,8 @@ def test_continue():
 def test_generate():
     if request.method == "GET":
         return render_template("test_generate.html")
-    num = int(request.form.get("examples")) if request.form.get("examples") else 20
-    examples = generate_examples(num)
+    n_examples = int(request.form.get("examples")) if request.form.get("examples") else 20
+    examples = generate_examples(n_examples)
     try:
         with closing(sqlite3.connect(SQLITE_DB)) as conn:
             with closing(conn.cursor()) as cursor:
@@ -396,30 +401,25 @@ def example_answer():
 @app.route("/scores", methods=["GET"])
 def scores():
     
-    query1 = "SELECT results.user_id, name, examples, avgtime, ROW_NUMBER() OVER (ORDER BY avgtime) AS rank FROM (SELECT user_id, SUM(1) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE DATE('now')-DATE(date) <= 7 GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id WHERE examples > 10;"
-    query2 = "SELECT COUNT(*) AS examples, SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id GROUP BY user_id;"
+    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY answers DESC, examples DESC, avgtime) AS rank FROM (SELECT results.user_id, name, examples, right, wrong, ROUND(CAST(right*100/examples AS FLOAT), 2) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :month AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :month GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples > 10) LIMIT 100;"
     
-    scores = db_execute(SQLITE_DB, "SELECT * FROM result JOIN example ON result.example_id = example.id JOIN test ON result.test_id = test.id LIMIT 100;")
+    scores = db_execute(SQLITE_DB, query, PERIODS, False)
     return render_template("scores.html", scores=scores)
 
 
 @app.route("/results", methods=["GET"])
 @login_required
 def results():
-    results = db_execute(SQLITE_DB, "SELECT * FROM result JOIN example ON result.example_id = example.id JOIN test ON result.test_id = test.id WHERE result.user_id = ?;", (session["user_id"],))
-    return render_template("results.html", results=results)
+    results = db_execute(SQLITE_DB, "SELECT example, timespent FROM result LEFT JOIN example ON result.example_id = example.id WHERE user_id = ?;", (session["user_id"],), False)
+    results_list = [['Example', 'Timespent']]
+    for row in results:
+        results_list.append([row['example'], row['timespent']])
+    return render_template("results.html", results=results_list)
 
 
 @app.route("/about", methods=["GET"])
 def about():
     return render_template("about.html")
-
-
-@app.route("/_add_numbers")
-def add_numbers():
-    a = request.args.get("a", 0, type=int)
-    b = request.args.get("b", 0, type=int)
-    return jsonify(result=a + b)
 
 
 def errorhandler(e):

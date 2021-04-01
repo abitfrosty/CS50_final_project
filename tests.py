@@ -1,5 +1,5 @@
 import numpy as np
-from random import sample
+from random import sample, choices
 from string import digits
 from itertools import product
 
@@ -133,5 +133,11 @@ def calculate_weights(len_examples, levels):
         weights[-index] += coef
         i += 1
     return np.asarray(weights, dtype=int).tolist()
+
+def duplicate_examples(test, k):
+    chosen = choices(test, k=k)
+    for x in chosen:
+        test.append(x)
+    return test
 
 
