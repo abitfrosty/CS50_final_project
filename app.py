@@ -4,14 +4,14 @@ from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from helpers import apology, login_required, admin_required, db_execute, dict_factory, usd
-from tests import generate_examples, calculate_weights, duplicate_examples
-#from datetime import datetime
-import json
-import re
-import sqlite3
 from contextlib import closing
 
+from helpers import apology, login_required, admin_required, db_execute, dict_factory, usd
+from tests import generate_examples, calculate_weights, duplicate_examples
+
+import json
+import sqlite3
+#import re
 
 # Configure application
 app = Flask(__name__)
@@ -139,12 +139,6 @@ def profile_update():
     params.append(session["user_id"])
 
     db_execute(SQLITE_DB, query, params)
-    """ SQL Query sample
-    row = db_execute(SQLITE_DB, 
-                     "UPDATE profile SET gender = ?, birthdate = ?, education = ?, bio = ? WHERE user_id = ?;",
-                     (request.form.get("gender"),request.form.get("birthdate"),request.form.get("education"),request.form.get("bio"),session["user_id"],))
-    """
-    
     return dynamic_flash(u"Profile update was successful!", "info")
 
 
@@ -359,7 +353,7 @@ def test_continue():
     try:
         session["test_id"] = request.args.get("test_id")
         test = db_execute(SQLITE_DB,
-                          "SELECT test.id AS test_id, test_example.example_id AS id, example.example, example.level, example.operator, ROW_NUMBER() OVER (ORDER BY example.level, example.id) AS number FROM (SELECT id FROM test WHERE user_id = :user_id AND id = :test_id) AS test JOIN test_example ON test.id = test_example.test_id LEFT JOIN result ON test_example.example_id = result.example_id JOIN example ON test_example.example_id = example.id WHERE answer IS NULL ORDER BY example.level, example.id;",
+                          "SELECT test.id AS test_id, test_example.example_id AS id, example.example, example.level, example.operator, ROW_NUMBER() OVER (ORDER BY example.id) AS number FROM test JOIN test_example ON test.id = test_example.test_id JOIN example ON test_example.example_id = example.id LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id WHERE test.id = :test_id AND test.user_id = :user_id AND answer IS NULL;",
                           dict(session),
                           False)
             
@@ -392,29 +386,46 @@ def example_answer():
     db_execute(SQLITE_DB, 
                "INSERT INTO result (user_id, test_id, example_id, answer, level, timespent) VALUES (?, ?, ?, ?, ?, ?);",
                (session["user_id"], session["test_id"], request.form.get("example_id"), request.form.get("answer"), request.form.get("level"), request.form.get("timespent"),))
-    example = db_execute(SQLITE_DB, 
-                         "SELECT CAST(eval AS INT) AS eval FROM example WHERE id = ?;",
-                         (request.form.get("example_id"),))
+    example = db_execute(SQLITE_DB, "SELECT CAST(eval AS INT) AS eval FROM example WHERE id = ?;", (request.form.get("example_id"),))
     return jsonify(example)
 
 
 @app.route("/scores", methods=["GET"])
 def scores():
-    
-    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY answers DESC, examples DESC, avgtime) AS rank FROM (SELECT results.user_id, name, examples, right, wrong, ROUND(CAST(right*100/examples AS FLOAT), 2) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :month AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :month GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples > 10) LIMIT 100;"
-    
-    scores = db_execute(SQLITE_DB, query, PERIODS, False)
+    scores = dict()
+    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY answers DESC, examples DESC, avgtime) AS rank FROM (SELECT results.user_id, name, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :month AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :month GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples > 10) LIMIT 25;"
+    scores["overall"] = db_execute(SQLITE_DB, query, PERIODS, False)
+    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY avgtime, examples DESC, answers DESC) AS rank FROM (SELECT results.user_id, name, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :month AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :month GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples > 10) WHERE answers >= 90 LIMIT 25;"
+    scores["avgtime"] = db_execute(SQLITE_DB, query, PERIODS, False)
     return render_template("scores.html", scores=scores)
 
 
 @app.route("/results", methods=["GET"])
 @login_required
 def results():
-    results = db_execute(SQLITE_DB, "SELECT example, timespent FROM result LEFT JOIN example ON result.example_id = example.id WHERE user_id = ?;", (session["user_id"],), False)
-    results_list = [['Example', 'Timespent']]
-    for row in results:
-        results_list.append([row['example'], row['timespent']])
-    return render_template("results.html", results=results_list)
+    query = "SELECT test.id AS test_id, test.date, test_example.example_id, example, eval, answer, CASE eval WHEN answer THEN 1 ELSE 0 END AS checked, timespent FROM test LEFT JOIN test_example ON test.id = test_example.test_id LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id LEFT JOIN example ON test_example.example_id = example.id WHERE test.user_id = ? AND answer IS NOT NULL;"
+    table_data = db_execute(SQLITE_DB, query, (session["user_id"],), False)
+    
+    data = db_execute(SQLITE_DB, "SELECT example, timespent FROM result LEFT JOIN example ON result.example_id = example.id WHERE user_id = ?;", (session["user_id"],), False)
+    histogram_timespent = [['Example', 'time spent, ms']]
+    for row in data:
+        histogram_timespent.append([row['example'], row['timespent']])
+    
+    data = db_execute(SQLITE_DB, "SELECT SUM(right) AS right, SUM(wrong) AS wrong FROM (SELECT CASE eval WHEN answer THEN 1 ELSE 0 END AS right, CASE eval WHEN answer THEN 0 ELSE 1 END AS wrong FROM test LEFT JOIN test_example ON test.id = test_example.test_id LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id LEFT JOIN example ON test_example.example_id = example.id WHERE test.user_id = ? AND answer IS NOT NULL);", (session["user_id"],))
+    piechart_check = [['Right/Wrong', 'Examples']]
+    piechart_check.append(['Right', data['right']])
+    piechart_check.append(['Wrong', data['wrong']])
+    
+    data = db_execute(SQLITE_DB, "SELECT result.level, COUNT(*) AS examples FROM test LEFT JOIN test_example ON test.id = test_example.test_id LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id LEFT JOIN example ON test_example.example_id = example.id WHERE test.user_id = ? AND answer IS NOT NULL GROUP BY result.level;", (session["user_id"],), False)
+    piechart_levels = [['Levels', 'Examples']]
+    for row in data:
+        piechart_levels.append(['Level '+str(row['level']), row['examples']])
+    
+    data = db_execute(SQLITE_DB, "SELECT example.operator, COUNT(*) AS examples FROM test LEFT JOIN test_example ON test.id = test_example.test_id LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id LEFT JOIN example ON test_example.example_id = example.id WHERE test.user_id = ? AND answer IS NOT NULL GROUP BY example.operator;", (session["user_id"],), False)
+    piechart_operations = [['Operations', 'Examples']]
+    for row in data:
+        piechart_operations.append([row['operator'], row['examples']])
+    return render_template("results.html", table_data=table_data, histogram_timespent=histogram_timespent, piechart_check=piechart_check, piechart_levels=piechart_levels, piechart_operations=piechart_operations)
 
 
 @app.route("/about", methods=["GET"])

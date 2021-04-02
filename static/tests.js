@@ -146,10 +146,10 @@ function listener() {
         }
         [...$('input[name="eval"]')].forEach(function(item,idx){
             var answer = item.parentElement.querySelector('input[name="answer"]');
-            if (parseInt(item.value,10)-parseInt(answer.value,10)) {
-                answer.style.backgroundColor="#faa";
-            } else {
+            if ((answer.value) && (parseInt(item.value,10) == parseInt(answer.value,10))) {
                 answer.style.backgroundColor="#afa";
+            } else {
+                answer.style.backgroundColor="#faa";
             }
         });
         /*

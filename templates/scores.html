@@ -1,35 +1,62 @@
 {% extends "layout.html" %}
 {% block head %}
-    <script type="text/javascript" src="{{ url_for('static', filename='scores.js') }}"></script>
 {% endblock %}
 {% block title %}Scores{% endblock %}
 
 {% block main %}
     <div class="container-fluid">
         <h2>Scores:</h2>
-        <h3>Rankings by ratio of right answers given to a total number of answers</h3>
-        <p>Have to solve at least 10 examples to appear on the score table</p>
-        <table class="table">
-          <thead>
-            <tr>
-              <th scope="col">Rank</th>
-              <th scope="col">Name</th>
-              <th scope="col">Examples</th>
-              <th scope="col">Answers, %</th>
-              <th scope="col">Avg Time, ms</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for score in scores %}
-            <tr>
-              <th scope="row">{% if score.rank == 1 %}<img src="{{ url_for('static', filename='/img/crown_gold.png') }}">{% elif score.rank == 2 %}<img src="{{ url_for('static', filename='/img/crown_silver.png') }}">{% elif score.rank == 3 %}<img src="{{ url_for('static', filename='/img/crown_bronze.png') }}">{% else %}{{ score.rank }}{% endif %}</th>
-              <td>{{ score.name }}</td>
-              <td>{{ score.examples }}</td>
-              <td>{{ score.answers }}</td>
-              <td>{{ score.avgtime }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="mt-5 mb-5">
+            <h4 class="mt-5 mb-5">Rankings by ratio of right answers given to a total number of answers</h3>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">Rank</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Examples</th>
+                  <th scope="col">Answers, %</th>
+                  <th scope="col">Avg Time, ms</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for score in scores.overall %}
+                <tr>
+                  <th scope="row">{% if score.rank == 1 %}<img src="{{ url_for('static', filename='/img/crown_gold.png') }}">{% elif score.rank == 2 %}<img src="{{ url_for('static', filename='/img/crown_silver.png') }}">{% elif score.rank == 3 %}<img src="{{ url_for('static', filename='/img/crown_bronze.png') }}">{% else %}{{ score.rank }}{% endif %}</th>
+                  <td>{{ score.name }}</td>
+                  <td>{{ score.examples }}</td>
+                  <td>{{ score.answers }}</td>
+                  <td>{{ score.avgtime }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <p class="fst-italic">*Have to solve at least 10 examples to appear on the score table</p>
+        </div>
+        <div class="mt-5 mb-5">
+            <h4 class="mt-5 mb-5">Rankings by average time spent on example</h3>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">Rank</th>
+                  <th scope="col">Name</th>
+                  <!--<th scope="col">Answers, %</th>-->
+                  <th scope="col">Avg Time, ms</th>
+                  <th scope="col">Examples</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for score in scores.avgtime %}
+                <tr>
+                  <th scope="row">{% if score.rank == 1 %}<img src="{{ url_for('static', filename='/img/crown_gold.png') }}">{% elif score.rank == 2 %}<img src="{{ url_for('static', filename='/img/crown_silver.png') }}">{% elif score.rank == 3 %}<img src="{{ url_for('static', filename='/img/crown_bronze.png') }}">{% else %}{{ score.rank }}{% endif %}</th>
+                  <td>{{ score.name }}</td>
+                  <!--<td>{{ score.answers }}</td>-->
+                  <td>{{ score.avgtime }}</td>
+                  <td>{{ score.examples }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <p class="fst-italic">*Have to solve at least 10 examples with at least 90% right answers to appear on the score table</p>
+        </div>
     </div>
 {% endblock %}

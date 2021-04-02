@@ -1,13 +1,14 @@
 {% extends "layout.html" %}
 {% block head %}
-    <script type="text/javascript" src="{{ url_for('static', filename='results.js') }}"></script>
 {% endblock %}
 {% block title %}About{% endblock %}
 
 {% block main %}
     <h2>About:</h2>
     <div class="container-fluid">
-        <h3>This is an example of my knowledge!</h3>
+        <h3>This site is the example of my knowledge!</h3>
         <p>Synergy of skills and opportunities in computer science.</p>
+        <p>You can take some maths tests <a href="/tests">here</a> and the speed of your answers will be measured and compared to others.</p>
+        
     </div>
 {% endblock %}

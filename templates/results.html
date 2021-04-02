@@ -1,54 +1,97 @@
 {% extends "layout.html" %}
 {% block head %}
-    <script type="text/javascript" src="{{ url_for('static', filename='results.js') }}"></script>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script type="text/javascript">
       google.charts.load("current", {packages:["corechart"]});
-      google.charts.setOnLoadCallback(drawChart);
-      function drawChart() {
+      google.charts.setOnLoadCallback(drawHistogramChart);
+      google.charts.setOnLoadCallback(drawPieChartCheck);
+      google.charts.setOnLoadCallback(drawPieChartLevels);
+      google.charts.setOnLoadCallback(drawPieChartOperations);
+
+      function drawHistogramChart() {
         var data = google.visualization.arrayToDataTable(
-          {{results|tojson|safe}}
+          {{ histogram_timespent|tojson|safe }}
           );
         var options = {
-          title: 'Time spent (ms) per example',
+          title: 'Overall time spent (ms) per example',
           legend: { position: 'none' },
         };
 
-        var chart = new google.visualization.Histogram(document.getElementById('chart_div'));
+        var chart = new google.visualization.Histogram(document.getElementById('histogram_timespent'));
         chart.draw(data, options);
       }
+
+      function drawPieChartCheck() {
+        var data = google.visualization.arrayToDataTable(
+        {{ piechart_check|tojson|safe }}
+        );
+        var options = {
+          title: 'Right to wrong ratio'
+        };
+        var chart = new google.visualization.PieChart(document.getElementById('piechart_check'));
+        chart.draw(data, options);
+      }
+      
+      function drawPieChartLevels() {
+        var data = google.visualization.arrayToDataTable(
+        {{ piechart_levels|tojson|safe }}
+        );
+        var options = {
+          title: 'Levels ratio'
+        };
+        var chart = new google.visualization.PieChart(document.getElementById('piechart_levels'));
+        chart.draw(data, options);
+      }
+      
+      function drawPieChartOperations() {
+        var data = google.visualization.arrayToDataTable(
+        {{ piechart_operations|tojson|safe }}
+        );
+        var options = {
+          title: 'Operations ratio'
+        };
+        var chart = new google.visualization.PieChart(document.getElementById('piechart_operations'));
+        chart.draw(data, options);
+      }
+    </script>
 </script>
+<link href={{ url_for('static', filename='results.css') }} rel="stylesheet">
 {% endblock %}
 {% block title %}My results{% endblock %}
 
 {% block main %}
-    <h2>My results:</h2>
+    <h2>Results:</h2>
     <div class="container-fluid">
         <h3>You are on a streak!</h3>
         <p>Accuracy is closeness of the measurements to a specific value, while precision is the closeness of the measurements to each other.</p>
         <table class="table">
           <thead>
             <tr>
-              <th scope="col">#</th>
-              <th scope="col">Tests</th>
-              <th scope="col">Examples</th>
-              <th scope="col">Time given</th>
-              <th scope="col">Time spent</th>
+              <th scope="col">Test id</th>
+              <th scope="col">Date</th>
+              <th scope="col">Example</th>
+              <th scope="col">Answer</th>
+              <th scope="col">Check</th>
+              <th scope="col">Time, ms</th>
             </tr>
           </thead>
           <tbody>
+            {% for row in table_data %}
             <tr>
-              <th scope="row">1</th>
-              <td>2</td>
-              <td>20</td>
-              <td>40</td>
-              <td>19</td>
+              <td>{{ row.test_id }}</td>
+              <td>{{ row.date }}</td>
+              <td>{{ row.example }}</td>
+              <td>{{ row.answer }}</td>
+              <td class="{% if row.checked %}right{% else %}wrong{% endif %}"><strong>{% if row.checked %}V{% else %}X{% endif %}</strong></td>
+              <td>{{ row.timespent }}</td>
             </tr>
+            {% endfor %}
           </tbody>
         </table>
     </div>
-    <div class="container-fluid">
-        <!-- <div id="chart_div" style="width: 900px; height: 500px;"></div> -->
-        <div id="chart_div" style="width: 900px; height: 500px;"></div>
-    </div>
+    <div class="container-fluid" id="histogram_timespent" style="width: 500px; height: 500px;"></div>
+    <div class="container-fluid" id="piechart_check" style="width: 500px; height: 300px;"></div>
+    <div class="container-fluid" id="piechart_levels" style="width: 500px; height: 300px;"></div>
+    <div class="container-fluid" id="piechart_operations" style="width: 500px; height: 300px;"></div>
+    
 {% endblock %}
