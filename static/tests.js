@@ -114,6 +114,11 @@ function listener() {
           data: $(form).serialize(),
           success: function(response) {
             if (response.length) {
+                const stringDoc = '<!DOCTYPE html>';
+                if (response.slice(0,stringDoc.length) == stringDoc) {
+                    //TODO;
+                    return;
+                }
                 $("#test").append(response);
                 //timeGiven = parseInt($("#exampleTimeGiven")[0].value, 10)/1000;
                 //let index = parseInt($("#exampleStartIndex")[0].value, 10);
