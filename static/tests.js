@@ -107,20 +107,25 @@ function listener() {
         }
     }
     
-    function generateTest(form) {
+    function testStart(form) {
         $.ajax({
-          async: true,
           url: form.action,
           type: form.method,
           data: $(form).serialize(),
           success: function(response) {
             if (response.length) {
+                const stringDoc = '<!DOCTYPE html>';
+                if (response.slice(0,stringDoc.length) == stringDoc) {
+                    //TODO;
+                    return;
+                }
                 $("#test").append(response);
-                timeGiven = parseInt($("#exampleTimeGiven")[0].value, 10)/1000;
+                //timeGiven = parseInt($("#exampleTimeGiven")[0].value, 10)/1000;
+                //let index = parseInt($("#exampleStartIndex")[0].value, 10);
                 let exampleCount = parseInt($("#exampleCount")[0].value, 10);
-                let index = parseInt($("#exampleStartIndex")[0].value, 10);
+                let index = 1;
                 disableForm(form);
-                form.setAttribute("hidden","");
+                $("#testQuery")[0].setAttribute("hidden","");
                 focusExample(index);
                 hideExamples(index+1, exampleCount);
                 rebindSubmit(index, exampleCount);
@@ -138,17 +143,18 @@ function listener() {
     
         $('h4[hidden]')[0].removeAttribute('hidden');
         
+        //const index = parseInt($("#exampleStartIndex")[0].value, 10);
         const exampleCount = parseInt($("#exampleCount")[0].value, 10);
-        const index = parseInt($("#exampleStartIndex")[0].value, 10);
+        const index = 1;
         for (i=index;i<=exampleCount;i++){
             $('#exampleTime'+i)[0].removeAttribute('hidden');
         }
         [...$('input[name="eval"]')].forEach(function(item,idx){
             var answer = item.parentElement.querySelector('input[name="answer"]');
-            if (parseInt(item.value,10)-parseInt(answer.value,10)) {
-                answer.style.backgroundColor="#faa";
-            } else {
+            if ((answer.value) && (parseInt(item.value,10) == parseInt(answer.value,10))) {
                 answer.style.backgroundColor="#afa";
+            } else {
+                answer.style.backgroundColor="#faa";
             }
         });
         /*
@@ -159,9 +165,14 @@ function listener() {
         */
     }
 
-    $('#generateTest').on('submit', function (evt) {
+    $('#testStart').on('submit', function (evt) {
         evt.preventDefault();
-        generateTest(this);
+        testStart(this);
+        });
+    
+    $('#testContinue').on('submit', function (evt) {
+        evt.preventDefault();
+        testStart(this);
         });
 
 }

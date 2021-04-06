@@ -10,7 +10,7 @@
     
     <div class="container-fluid mb-5">
         <p>The more you tell about yourself, the more accurate and precise overall statistics will be.</p>
-        <form action="/update_profile" method="post" id="formUpdateProfile">
+        <form action="/profile_update" method="post" id="formProfileUpdate">
             <div class="row row-cols-lg-1 g-1 mb-1 justify-content-center">
                 <div class="col-lg-3">
                     <div class="input-group">
@@ -39,8 +39,9 @@
             <div class="row row-cols-lg-2 g-1 mb-1 justify-content-center">
                 <div class="col-lg-1"></div>
                 <div class="col-lg-9">
-                    <div class="input group">
-                        <textarea class="form-control" name="bio" placeholder="What do you like?">{% if profile.bio %}{{ profile.bio }}{% endif %}</textarea>
+                    <div class="form-floating">
+                        <textarea class="form-control h-100" name="bio" placeholder="">{% if profile.bio %}{{ profile.bio }}{% endif %}</textarea>
+                        <label>What do you like?</label>
                     </div>
                 </div>
                 <div class="col-lg-1"></div>
@@ -55,7 +56,7 @@
     
     <div class="container-fluid mb-5">
         <p>To change name:</p>
-        <form class="row row-cols-lg-auto g-1 justify-content-center" action="/update_name" method="post" id="formUpdateName">
+        <form class="row row-cols-lg-auto g-1 justify-content-center" action="/name_update" method="post" id="formNameUpdate">
             <div class="col-lg-3">
                 <div class="input-group">
                     <div class="input-group-text">Name</div>
@@ -70,7 +71,7 @@
 
     <div class="container-fluid mb-5">
         <p>To change password:</p>
-        <form class="row row-cols-lg-auto g-1 justify-content-center" action="/update_password" method="post" id="formUpdatePassword">
+        <form class="row row-cols-lg-auto g-1 justify-content-center" action="/password_update" method="post" id="formPasswordUpdate">
             <div class="col-lg-3">
                 <div class="input-group">
                     <div class="input-group-text">Pswd</div>
@@ -80,7 +81,7 @@
             <div class="col-lg-3">
                 <div class="input-group">
                     <div class="input-group-text">Cnfrm</div>
-                    <input class="form-control" name="confirmation" placeholder="New password (again)" type="password">
+                    <input class="form-control" name="confirmation" autocomplete="off" placeholder="New password (again)" type="password">
                 </div>
             </div>
             <div class="col-lg-0">

@@ -4,13 +4,14 @@ from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from helpers import apology, login_required, db_execute, usd
-from tests import generate_tests, prepare_test_for_sql
-#from datetime import datetime
-import re
-import sqlite3
 from contextlib import closing
 
+from helpers import apology, login_required, admin_required, db_execute, dict_factory, usd
+from tests import generate_examples, calculate_weights, duplicate_examples
+
+import json
+import sqlite3
+#import re
 
 # Configure application
 app = Flask(__name__)
@@ -42,6 +43,8 @@ GENDER_LIST = ["male", "female", "other"]
 
 # Global path to the main database for 'db_execute'
 SQLITE_DB = "project.db"
+
+PERIODS = {"today": 0, "day": 1, "week": 7, "month": 30, "year": 365, "alltime": 9999}
 
 """
 @app.template_filter('quoted')
@@ -76,7 +79,7 @@ def login():
             return apology("must provide password", 403)
 
         row = db_execute(SQLITE_DB,
-                         "SELECT users_temp.id AS id, users_temp.hash AS hash, profiles.name AS name FROM (SELECT id, hash FROM users WHERE login = ?) AS users_temp LEFT JOIN profiles ON users_temp.id = profiles.users_id;",
+                         "SELECT user_temp.id AS id, user_temp.hash AS hash, user_temp.type AS type, profile.name AS name FROM (SELECT id, hash, type FROM user WHERE login = ?) AS user_temp LEFT JOIN profile ON user_temp.id = profile.user_id;",
                          (request.form.get("login"),))
             
         # Ensure login exists and password is correct
@@ -88,21 +91,14 @@ def login():
 
         # Remember user's name
         session["user_name"] = row["name"]
+        
+        session["admin"] = True if (row["type"] and "admin" in row["type"]) else False
 
         # Redirect user to home page
         return redirect("/")
 
     # User reached route via GET (as by clicking a link or via redirect)
     return render_template("login.html")
-
-
-@app.route("/profile", methods=["GET"])
-@login_required
-def profile():
-    """User's profile"""
-    profile = db_execute(SQLITE_DB, "SELECT * FROM profiles WHERE users_id = ?;", (session["user_id"],))
-    profile["gender_list"] = GENDER_LIST
-    return render_template("profile.html", profile=profile)
 
 
 # Dynamic notification system
@@ -114,49 +110,52 @@ def dynamic_flash(message="", category="primary", closing=True):
     Requirements: flask[flash, jsonify, render_template], JQuery, Bootstrap
     """
     flash(message, category)
-    return jsonify(render_template(("generate_notifications.html"), with_closing=closing))
+    return jsonify(render_template(("notifications.html"), with_closing=closing))
 
 
-@app.route("/update_name", methods=["POST"])
+@app.route("/profile", methods=["GET"])
 @login_required
-def update_name():
-    db_execute(SQLITE_DB, "UPDATE profiles SET name = ? WHERE users_id = ?;", (request.form.get("name"), session["user_id"],))
-    session["user_name"] = request.form.get("name")
-    return dynamic_flash(u"Good to see you, {0}!".format(session["user_name"]),"primary")
+def profile():
+    """User's profile"""
+    profile = db_execute(SQLITE_DB, "SELECT * FROM profile WHERE user_id = ?;", (session["user_id"],))
+    profile["gender_list"] = GENDER_LIST
+    return render_template("profile.html", profile=profile)
 
 
-@app.route("/update_profile", methods=["POST"])
+@app.route("/profile_update", methods=["POST"])
 @login_required
-def update_profile():
+def profile_update():
     if request.form.get("gender") is not None and request.form.get("gender") not in GENDER_LIST:
         return apology("Gender was not recognized!", 403)
         
     data = request.form.to_dict()
     params = []
-    query = "UPDATE profiles SET "
+    query = "UPDATE profile SET "
     for k, v in data.items():
         query += k + " = ?, "
         params.append(v)
+    query = query[:-len(", ")]
+    query += " WHERE user_id = ?;"
     params.append(session["user_id"])
-    query = query[:-2]
-    query += " WHERE users_id = ?;"
 
     db_execute(SQLITE_DB, query, params)
-    """ SQL Query sample
-    row = db_execute(SQLITE_DB, 
-                     "UPDATE profiles SET gender = ?, birthdate = ?, education = ?, bio = ? WHERE users_id = ?;",
-                     (request.form.get("gender"),request.form.get("birthdate"),request.form.get("education"),request.form.get("bio"),session["user_id"],))
-    """
-    
     return dynamic_flash(u"Profile update was successful!", "info")
 
 
-@app.route("/update_password", methods=["POST"])
+@app.route("/name_update", methods=["POST"])
 @login_required
-def update_password():
+def name_update():
+    db_execute(SQLITE_DB, "UPDATE profile SET name = ? WHERE user_id = ?;", (request.form.get("name"), session["user_id"],))
+    session["user_name"] = request.form.get("name")
+    return dynamic_flash(u"Good to see you, {0}!".format(session["user_name"]),"primary")
+
+
+@app.route("/password_update", methods=["POST"])
+@login_required
+def password_update():
     """Change password"""
     if request.form.get("password") == request.form.get("confirmation"):
-        row = db_execute(SQLITE_DB, "UPDATE users SET hash = ? WHERE id = ?;", (generate_password_hash(request.form.get("password")), session["user_id"],))
+        row = db_execute(SQLITE_DB, "UPDATE user SET hash = ? WHERE id = ?;", (generate_password_hash(request.form.get("password")), session["user_id"],))
         return dynamic_flash(u"Your password has been changed successfully!", "info")
     else:
         return dynamic_flash(u"Password and confirmation did not match!", "danger")
@@ -194,15 +193,15 @@ def register():
     if len(apology_t):
         return apology(apology_t, apology_c)
 
-    row = db_execute(SQLITE_DB, "SELECT * FROM users WHERE login = ?", (request.form.get("login"),))
+    row = db_execute(SQLITE_DB, "SELECT * FROM user WHERE login = ?", (request.form.get("login"),))
     if row is not None:
         apology_t = "login already exists"
 
     if len(apology_t):
         return apology(apology_t, apology_c)
 
-    user_id = db_execute(SQLITE_DB, "INSERT INTO users (login, hash) VALUES (?, ?);", (request.form.get("login"), generate_password_hash(request.form.get("password")),))
-    db_execute(SQLITE_DB, "INSERT INTO profiles (users_id) VALUES (?);", (user_id,))
+    user_id = db_execute(SQLITE_DB, "INSERT INTO user (login, hash) VALUES (?, ?);", (request.form.get("login"), generate_password_hash(request.form.get("password")),))
+    db_execute(SQLITE_DB, "INSERT INTO profile (user_id) VALUES (?);", (user_id,))
     session["user_id"] = user_id
     flash(u"New user's registration with id \"{0}\" was successful!".format(user_id), "info")
     return redirect("/")
@@ -210,76 +209,230 @@ def register():
 
 @app.route("/tests", methods=["GET"])
 def tests():
-    return render_template("tests.html")
+    test_continue = None
+    if "user_id" in session:
+        query = """
+        SELECT 
+          operators.test_id AS id, 
+          test.date, 
+          operators.operators, 
+          levels.levels, 
+          operators.examples 
+        FROM 
+          (
+            SELECT 
+              test_id, 
+              GROUP_CONCAT(operator) AS operators, 
+              SUM(examples) AS examples 
+            FROM 
+              (
+                SELECT 
+                  test_id, 
+                  operator, 
+                  COUNT(*) AS examples 
+                FROM 
+                  example 
+                  JOIN (
+                    SELECT 
+                      test_example.test_id, 
+                      test_example.example_id 
+                    FROM 
+                      test_example 
+                      LEFT JOIN result ON test_example.test_id = result.test_id 
+                      AND test_example.example_id = result.example_id 
+                    WHERE 
+                      test_example.test_id IN (
+                        SELECT 
+                          id 
+                        FROM 
+                          test 
+                        WHERE 
+                          user_id = :user_id
+                      ) 
+                      AND answer IS NULL
+                  ) AS test ON example.id = test.example_id 
+                GROUP BY 
+                  test_id, 
+                  operator 
+                ORDER BY 
+                  example.id
+              ) 
+            GROUP BY 
+              test_id
+          ) AS operators 
+          JOIN (
+            SELECT 
+              test_id, 
+              GROUP_CONCAT(level) AS levels 
+            FROM 
+              (
+                SELECT 
+                  DISTINCT test_id, 
+                  level 
+                FROM 
+                  example 
+                  JOIN (
+                    SELECT 
+                      test_example.test_id, 
+                      test_example.example_id 
+                    FROM 
+                      test_example 
+                      LEFT JOIN result ON test_example.test_id = result.test_id 
+                      AND test_example.example_id = result.example_id 
+                    WHERE 
+                      test_example.test_id IN (
+                        SELECT 
+                          id 
+                        FROM 
+                          test 
+                        WHERE 
+                          user_id = :user_id
+                      ) 
+                      AND answer IS NULL
+                  ) AS test ON example.id = test.example_id 
+                ORDER BY 
+                  level, 
+                  example.id
+              ) 
+            GROUP BY 
+              test_id
+          ) AS levels ON operators.test_id = levels.test_id 
+          JOIN test ON operators.test_id = test.id;"""
+        test_continue = db_execute(SQLITE_DB, query, dict(session), False)
+    levels = db_execute(SQLITE_DB, "SELECT DISTINCT level FROM example ORDER BY level;", "", False)
+    operators = db_execute(SQLITE_DB, "SELECT DISTINCT operator FROM example ORDER BY id;", "", False)
+    return render_template("tests.html", levels=levels, operators=operators, test_continue=test_continue)
 
 
-@app.route("/generate_test", methods=["GET"])
+@app.route("/test_start", methods=["GET"])
 @login_required
-def generate_test():
+def test_start():
     """
     Dynamic html (jsonify, jinja, jquery, ajax)
     https://stackoverflow.com/questions/40701973/create-dynamically-html-div-jinja2-and-ajax
     """
-    if "tests_id" in session:
-        test = db_execute(SQLITE_DB,
-                          "SELECT users_id, tests_id, number, example, timegiven FROM examples WHERE users_id = ? AND tests_id = ? AND timespent = 0;",
-                          (session["user_id"], session["tests_id"],),
-                          False)
-        if test is not None and len(test):
-            return jsonify(render_template("generate_test.html", test=test))
-
-    with closing(sqlite3.connect(SQLITE_DB)) as conn: # auto-closes
-        with closing(conn.cursor()) as cursor: # auto-closes
-            query = "INSERT INTO tests (users_id, level) VALUES (?, ?);"
-            args = (session["user_id"], int(request.args.get("level")),)
+    
+    request_args = request.args.to_dict(flat=False)
+    operators = request_args.get("operator") # Need to check if none selected
+    levels = request_args.get("level") # Need to check if none selected
+    n_examples = int(request_args.get("examples")[0]) if request_args.get("examples") else 10
+    query = ""
+    args = []
+    weights = calculate_weights(n_examples, levels)
+    for idx, level in enumerate(levels, start=1):
+        query += "SELECT * FROM (SELECT * FROM example WHERE level = ? AND operator IN (?operator?) ORDER BY random() LIMIT "
+        query += str(weights[idx-1]) + ") AS level" + str(idx)
+        query += " UNION ALL "
+        args.append(level)
+        for operator in operators:
+            args.append(operator)
+    query = query.replace("?operator?", ", ".join("?" * len(operators)))
+    query = query[:-len(" UNION ALL ")] if len(query) else ""
+    with closing(sqlite3.connect(SQLITE_DB)) as conn:
+        conn.row_factory = dict_factory
+        with closing(conn.cursor()) as cursor:
             cursor.execute("BEGIN TRANSACTION;")
-            cursor.execute(query, args)
-            tests_id = cursor.lastrowid
-            test = generate_tests(int(request.args.get("level")), int(request.args.get("examples")))
-            query = "INSERT INTO examples (users_id, tests_id, number, example, eval, timegiven) VALUES (:users_id, :tests_id, :number, :example, :eval, :timegiven);"
-            args = prepare_test_for_sql(test, session["user_id"], tests_id, int(request.args.get("time")))
-            cursor.executemany(query, args)
+            cursor.execute(query, tuple(args))
+            test = cursor.fetchall()
+            #if len(test) < n_examples:
+            #    test = duplicate_examples(test, n_examples - len(test))
+            cursor.execute("INSERT INTO test (user_id) VALUES (?);", (session["user_id"],))
+            session["test_id"] = cursor.lastrowid
+            for idx, ex in enumerate(test, start=1):
+                ex.update({"test_id": session["test_id"], "number": idx})
+            cursor.executemany("INSERT INTO test_example (test_id, example_id) VALUES (:test_id, :id);", test)
             cursor.execute("COMMIT;")
-            session["tests_id"] = tests_id
-            return jsonify(render_template("generate_test.html", test=args))
+            return jsonify(render_template("test_start.html", test=test))
+    
+    return apology("There are no available tests!", 404)
+
+
+@app.route("/test_continue", methods=["GET"])
+@login_required
+def test_continue():
+    try:
+        session["test_id"] = request.args.get("test_id")
+        test = db_execute(SQLITE_DB,
+                          "SELECT test.id AS test_id, test_example.example_id AS id, example.example, example.level, example.operator, ROW_NUMBER() OVER (ORDER BY example.id) AS number FROM test JOIN test_example ON test.id = test_example.test_id JOIN example ON test_example.example_id = example.id LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id WHERE test.id = :test_id AND test.user_id = :user_id AND answer IS NULL;",
+                          dict(session),
+                          False)
+            
+        return jsonify(render_template("test_start.html", test=test))
+    except:
+        return apology("No tests to continue!", 404)
+
+
+@app.route("/test_generate", methods=["GET", "POST"])
+@admin_required
+def test_generate():
+    if request.method == "GET":
+        return render_template("test_generate.html")
+    n_examples = int(request.form.get("examples")) if request.form.get("examples") else 20
+    examples = generate_examples(n_examples)
+    try:
+        with closing(sqlite3.connect(SQLITE_DB)) as conn:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute("BEGIN TRANSACTION;")
+                query = "INSERT INTO example (example, level, operator, eval) VALUES (:example, :level, :operator, :eval);"
+                cursor.executemany(query, examples)
+                cursor.execute("COMMIT;")
+                return dynamic_flash(u"Examples generated successfully!", "info")
+    except:
+        return dynamic_flash(u"Couldn't generate examples!", "danger")
 
 
 @app.route("/example_answer", methods=["POST"])
 def example_answer():
-    # SQL UPDATE and return (eval-answer) difference
     db_execute(SQLITE_DB, 
-               "UPDATE examples SET answer = ?, timespent = ? WHERE users_id = ? AND tests_id = ? AND number = ?;--AND timespent = 0;",
-               (request.form.get("answer"), request.form.get("timespent"), session["user_id"], session["tests_id"], request.form.get("number"),))
-    example = db_execute(SQLITE_DB, "SELECT CAST(eval AS INT) AS eval, CAST(answer AS INT) AS answer FROM examples WHERE users_id = ? AND tests_id = ? AND number = ?;", (session["user_id"], session["tests_id"], request.form.get("number"),))
+               "INSERT INTO result (user_id, test_id, example_id, answer, level, timespent) VALUES (?, ?, ?, ?, ?, ?);",
+               (session["user_id"], session["test_id"], request.form.get("example_id"), request.form.get("answer"), request.form.get("level"), request.form.get("timespent"),))
+    example = db_execute(SQLITE_DB, "SELECT CAST(eval AS INT) AS eval FROM example WHERE id = ?;", (request.form.get("example_id"),))
     return jsonify(example)
 
 
 @app.route("/scores", methods=["GET"])
 def scores():
-    
-    return render_template("scores.html")
+    scores = dict()
+    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY answers DESC, examples DESC, avgtime) AS rank FROM (SELECT results.user_id, name, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :alltime AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :alltime GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples > 10) LIMIT 25;"
+    scores["overall"] = db_execute(SQLITE_DB, query, PERIODS, False)
+    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY avgtime, examples DESC, answers DESC) AS rank FROM (SELECT results.user_id, name, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :alltime AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :alltime GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples > 10) WHERE answers >= 90 LIMIT 25;"
+    scores["avgtime"] = db_execute(SQLITE_DB, query, PERIODS, False)
+    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY answers DESC, examples DESC, avgtime) AS rank FROM (SELECT results.user_id, name, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :alltime AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :alltime GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples > 10 AND STRFTIME('%Y', 'now') - STRFTIME('%Y', birthdate) <= 10) LIMIT 25;"
+    scores["underage10"] = db_execute(SQLITE_DB, query, PERIODS, False)
+    return render_template("scores.html", scores=scores)
 
 
 @app.route("/results", methods=["GET"])
 @login_required
 def results():
-    return render_template("results.html")
+    query = "SELECT test.id AS test_id, test.date, test_example.example_id, example, eval, answer, CASE eval WHEN answer THEN 1 ELSE 0 END AS checked, timespent FROM test LEFT JOIN test_example ON test.id = test_example.test_id LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id LEFT JOIN example ON test_example.example_id = example.id WHERE test.user_id = ? AND answer IS NOT NULL;"
+    table_data = db_execute(SQLITE_DB, query, (session["user_id"],), False)
+    
+    data = db_execute(SQLITE_DB, "SELECT example, timespent FROM result LEFT JOIN example ON result.example_id = example.id WHERE user_id = ?;", (session["user_id"],), False)
+    histogram_timespent = [['Example', 'time spent, ms']]
+    for row in data:
+        histogram_timespent.append([row['example'], row['timespent']])
+    
+    data = db_execute(SQLITE_DB, "SELECT SUM(right) AS right, SUM(wrong) AS wrong FROM (SELECT CASE eval WHEN answer THEN 1 ELSE 0 END AS right, CASE eval WHEN answer THEN 0 ELSE 1 END AS wrong FROM test LEFT JOIN test_example ON test.id = test_example.test_id LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id LEFT JOIN example ON test_example.example_id = example.id WHERE test.user_id = ? AND answer IS NOT NULL);", (session["user_id"],))
+    piechart_check = [['Right/Wrong', 'Examples']]
+    piechart_check.append(['Right', data['right']])
+    piechart_check.append(['Wrong', data['wrong']])
+    
+    data = db_execute(SQLITE_DB, "SELECT result.level, COUNT(*) AS examples FROM test LEFT JOIN test_example ON test.id = test_example.test_id LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id LEFT JOIN example ON test_example.example_id = example.id WHERE test.user_id = ? AND answer IS NOT NULL GROUP BY result.level;", (session["user_id"],), False)
+    piechart_levels = [['Levels', 'Examples']]
+    for row in data:
+        piechart_levels.append(['Level '+str(row['level']), row['examples']])
+    
+    data = db_execute(SQLITE_DB, "SELECT example.operator, COUNT(*) AS examples FROM test LEFT JOIN test_example ON test.id = test_example.test_id LEFT JOIN result ON test_example.test_id = result.test_id AND test_example.example_id = result.example_id LEFT JOIN example ON test_example.example_id = example.id WHERE test.user_id = ? AND answer IS NOT NULL GROUP BY example.operator;", (session["user_id"],), False)
+    piechart_operations = [['Operations', 'Examples']]
+    for row in data:
+        piechart_operations.append([row['operator'], row['examples']])
+    return render_template("results.html", table_data=table_data, histogram_timespent=histogram_timespent, piechart_check=piechart_check, piechart_levels=piechart_levels, piechart_operations=piechart_operations)
 
 
 @app.route("/about", methods=["GET"])
 def about():
     return render_template("about.html")
-
-
-@app.route("/_add_numbers")
-def add_numbers():
-    a = request.args.get("a", 0, type=int)
-    b = request.args.get("b", 0, type=int)
-    return jsonify(result=a + b)
-
-
-def collect_errors(*args, **kwargs):
-    pass
 
 
 def errorhandler(e):

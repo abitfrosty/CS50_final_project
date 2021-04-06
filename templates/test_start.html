@@ -1,0 +1,35 @@
+{# This whole document is included on request into 'tests.html' #}
+<div class="hidden">
+    <input id="exampleCount" value="{{ test | length }}" type="hidden">
+</div>
+<div class="container mt-5 mb-5">Total time: <span id="totalTime"></span> seconds</div>
+{% for example in test %}
+<form action="/example_answer" method="post" id="example{{ example.number }}">
+    <div class="row row-cols-lg-auto g-1 mb-1 justify-content-center">
+        <div class="col-lg-2">
+            <div class="input group">
+                <input autocomplete="off" readonly tabindex="-1" class="form-control text-center" name="example" type="text" value="{{ example.example }}">
+                <input value="{{ example.number }}" name="number" type="hidden">
+                <input value="{{ example.level }}" name="level" type="hidden">
+                <input value="{{ example.test_id }}" name="test_id" type="hidden">
+                <input value="{{ example.id }}" name="example_id" type="hidden">
+                <input value="0" name="timespent" type="hidden">
+            </div>
+        </div>
+        <div class="col-lg-0">
+            <p class="pb-2 pt-2 m-0"><span>=</span>
+        </div>
+        <div class="col-lg-2">
+            <div class="input group">
+                <input class="form-control text-center" autofocus autocomplete="off" name="answer" placeholder="?" type="number">
+                <input class="form-control text-center" value="" name="eval" hidden>
+            </div>
+        </div>
+        <div class="col-lg-1">
+            <button class="btn btn-primary" type="submit" tabindex="-1">Next</button>
+        </div>
+        <div class="col-lg-1"><p class="pb-2 pt-2 m-0"><span id="exampleTime{{ example.number }}" hidden></span></p></div>
+    </div>
+</form>
+{% endfor %}
+<h4 class="mt-5" hidden>The test is finished</h4>

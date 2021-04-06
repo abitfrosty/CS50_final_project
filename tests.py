@@ -1,50 +1,143 @@
-from random import random, choice
+import numpy as np
+from random import sample, choices
+from string import digits
+from itertools import product
 
 
-def formula(level, operator_index):
-    log_formula = 2**(level+1) / (operator_index+1)**2
-    multiplier = 1
-    if log_formula >= 10 and random() > 0.5:
-        multiplier = -1
-    random_number = multiplier * round(random() * log_formula, level // 10)
-    return random_number if int(random_number) != random_number else int(random_number)
+def generate_numbers():
+    numbers = []
+    for number in product(digits, repeat=3):
+        numbers.append(("".join(number)).lstrip("0"))
+    numbers[0] = "0"
+    return numbers
 
-def get_operator(level):
-    operators = ["+", "-", "/", "*", "**"]
-    index = choice(range(len(operators[:level // 2 + 1])))
-    return index, operators[index]
+def generate_examples_plus(numbers, examples):
+    operator = "+"
+    for number in product(numbers, repeat=2):
+        level = 0
+        example = operator.join(number)
+        evaled = eval(example)
+        if evaled <= 10:
+            if number[0] in ["1"] or number[1] in ["1"]:
+                level += 1
+            elif number[0] in ["2"] or number[1] in ["2"]:
+                level += 2
+            else:
+                level += 3
+        else:
+            if number[0] in ["1"] or number[1] in ["1"]:
+                level += 2
+            elif number[0] in ["10"] or number[1] in ["10"]:
+                level += 3
+            else:
+                level += 4
+        examples.append({"example": example, "level": level, "operator": operator, "eval": evaled})
+    return examples
 
-def concat_example(var1, operator, var2):
-    return f"{var1} {operator} {var2}".replace("+ -", "- ").replace("- -", "+ ")
+def generate_examples_minus(numbers, examples):
+    operator = "-"
+    for number in product(numbers, repeat=2):
+        level = 0
+        example = operator.join(number)
+        evaled = eval(example)
+        if evaled == 0:
+            level = 1
+        elif evaled > 0:
+            if number[0] in ["1"] or number[1] in ["1"]:
+                level += 1
+            elif number[0] in ["2"] or number[1] in ["2"]:
+                level += 2
+            else:
+                level += 3
+        else:
+            if number[0] in ["1"] or number[1] in ["1"]:
+                level += 2
+            elif number[0] in ["10"] or number[1] in ["10"]:
+                level += 3
+            else:
+                level += 4
+        examples.append({"example": example, "level": level, "operator": operator, "eval": evaled})
+    return examples
 
-def generate_example(level):
-    operator_index, operator = get_operator(level)
-    variable1 = formula(level, operator_index)
-    variable2 = formula(level, operator_index)
-    concat_example(variable1, operator, variable2)
-    try:
-        answer = eval(concat_example(variable1, operator, variable2))
-    except ZeroDivisionError:
-        variable2 += 1
-        answer = eval(concat_example(variable1, operator, variable2))
-    if level <= 2 and answer < 0:
-        return concat_example(variable2, operator, variable1)
-    if answer != int(answer):
-        return generate_example(level)
-    return concat_example(variable1, operator, variable2)
+def generate_examples_multi(numbers, examples):
+    operator = "*"
+    for number in product(numbers, repeat=2):
+        level = 0
+        example = operator.join(number)
+        evaled = eval(example)
+        if number[0] in ["1", "10"] or number[1] in ["1", "10"]:
+            level += 1
+        elif number[0] in ["2"] or number[1] in ["2"]:
+            if evaled <= 20:
+                level += 2
+            else:
+                level += 3
+        elif evaled <= 20 or number[0] in ["20"] or number[1] in ["20"]:
+            level += 3
+        else:
+            level += 4
+        examples.append({"example": example, "level": level, "operator": operator, "eval": evaled})
+    return examples
 
-def generate_tests(level=1, n=10):
-    examples = set()
-    test = []
-    while len(examples) < n:
-        examples.add(generate_example(level))
-    for idx, t in enumerate(examples, start=1):
-        test.append({"number": idx, "example": t, "eval": int(eval(t))})
-    return test
+def generate_examples_div(numbers, examples):
+    operator = "/"
+    for number in product(numbers, repeat=2):
+        level = 0
+        example = operator.join(number)
+        evaled = eval(example)
+        if evaled != int(evaled):
+            continue
+        if evaled == 1:
+            level = 1
+        elif number[0] in ["6", "7", "8", "9"] or number[1] in ["6", "7", "8", "9"]:
+            level += 4
+        elif number[0] in ["1", "10"] or number[1] in ["1", "10"]:
+            level += 1
+        elif number[0] in ["2", "3"] or number[1] in ["2", "3"]:
+            level += 2
+        elif number[0] in ["4", "5"] or number[1] in ["4", "5"]:
+            level += 3
+        else:
+            level += 4
+        examples.append({"example": example, "level": level, "operator": operator, "eval": int(evaled)})
+    return examples
 
-def prepare_test_for_sql(test, users_id, tests_id, timegiven):
-    for row in test:
-        row.update({"users_id": users_id, "tests_id": tests_id, "timegiven": timegiven})
+def generate_examples(num=10):
+    numbers = generate_numbers()
+    examples = []
+    examples = generate_examples_plus(numbers[1:num+1], examples)
+    examples = generate_examples_minus(numbers[1:num+1], examples)
+    examples = generate_examples_multi(numbers[1:num+1], examples)
+    examples = generate_examples_div(numbers[1:num+1], examples)
+    return examples
+    
+def calculate_weights(len_examples, levels):
+    len_levels = len(levels)
+    each_level = len_examples / len_levels
+    
+    left = levels[:len_levels // 2 + len_levels % 2]
+    right = levels[:len_levels // 2][::-1]
+    left_right = (np.array(left + right)).astype(int)
+
+    weights = np.floor(np.sqrt(np.pi * each_level * left_right))
+    coef = 1 if len_examples >= np.sum(weights) else -1
+    difference = abs(len_examples - np.sum(weights))
+    if difference:
+        weights[0] += coef
+    i = 1
+    while abs(len_examples - np.sum(weights)):
+        index = i % len(weights)
+        weights[index] += coef
+        if abs(len_examples - np.sum(weights)) == 0:
+            break
+        weights[-index] += coef
+        i += 1
+    return np.asarray(weights, dtype=int).tolist()
+
+def duplicate_examples(test, k):
+    chosen = choices(test, k=k)
+    for x in chosen:
+        test.append(x)
     return test
 
 
