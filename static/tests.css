@@ -1,6 +1,3 @@
-.form-floating textarea.form-control {
-    height: initial;
-}
 
 .form-floating label {
     text-align: initial;
@@ -41,4 +38,3 @@ width: 90%;
 transform: scale(0.982) translateY(0.045rem) translateX(0.1rem);
 border-radius: 5px 0 0 0;
 }
-

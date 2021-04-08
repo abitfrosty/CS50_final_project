@@ -11,8 +11,8 @@
     <div class="container-fluid mb-5">
         <p>The more you tell about yourself, the more accurate and precise overall statistics will be.</p>
         <form action="/profile_update" method="post" id="formProfileUpdate">
-            <div class="row row-cols-lg-1 g-1 mb-1 justify-content-center">
-                <div class="col-lg-3">
+            <div class="row row-cols-lg-4 g-1 mb-1 justify-content-center">
+                <div class="col-lg">
                     <div class="input-group">
                         <div class="input-group-text">Gender</div>
                         <select class="form-select" name="gender">
@@ -23,31 +23,40 @@
                         </select>
                     </div>
                 </div>
-                <div class="col-lg-3">
+                <div class="col-lg">
                     <div class="input-group">
                         <div class="input-group-text">Birthdate</div>
                         <input class="form-control" name="birthdate" value="{% if profile.birthdate %}{{ profile.birthdate }}{% endif %}" type="date">
                     </div>
                 </div>
-                <div class="col-lg-3">
+            </div>
+            <div class="row row-cols-lg-2 g-1 mb-1 justify-content-center">
+                <div class="col-lg">
                     <div class="input-group">
                         <div class="input-group-text">Education</div>
                         <input class="form-control" name="education" autocomplete="off" placeholder="Education" value="{% if profile.education %}{{ profile.education }}{% endif %}" type="text">
                     </div>
                 </div>
             </div>
-            <div class="row row-cols-lg-2 g-1 mb-1 justify-content-center">
-                <div class="col-lg-1"></div>
-                <div class="col-lg-9">
+            <div class="row row-cols-lg-auto g-1 mb-1 justify-content-center">
+                <div class="col-lg-6">
                     <div class="form-floating">
-                        <textarea class="form-control h-100" name="bio" placeholder="">{% if profile.bio %}{{ profile.bio }}{% endif %}</textarea>
+                        <textarea class="form-control" name="bio" placeholder="">{% if profile.bio %}{{ profile.bio }}{% endif %}</textarea>
                         <label>What do you like?</label>
                     </div>
                 </div>
-                <div class="col-lg-1"></div>
             </div>
-            <div class="row row-cols-lg-3 g-1 justify-content-center">
-                <div class="col-12">
+            <div class="row row-cols-lg-auto g-1 mb-1 justify-content-center">
+                <div class="col-lg">
+                    <div class="form-check">
+                        <label class="form-check-label">
+                            <input class="form-check-input" type="checkbox" id="checkShared" value="{{ profile.shared }}" name="shared" {% if profile.shared %}checked{% endif %}>Open profile for public
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="row row-cols-lg-auto g-1 justify-content-center">
+                <div class="col-lg">
                     <button class="btn btn-primary" type="submit">Update</button>
                 </div>
             </div>
@@ -55,15 +64,30 @@
     </div>
     
     <div class="container-fluid mb-5">
+        <p>To change email:</p>
+        <form class="row row-cols-lg-auto g-1 justify-content-center" action="/email_update" method="post" id="formEmailUpdate">
+            <div class="col-lg-3">
+                <div class="input-group">
+                    <div class="input-group-text">Email</div>
+                    <input class="form-control" name="email" autocomplete="off" placeholder="What's your email?" value="{% if profile.email %}{{ profile.email }}{% endif %}" type="text">
+                </div>
+            </div>
+            <div class="col-lg">
+                <button class="btn btn-primary" type="submit">Change</button>
+            </div>
+        </form>
+    </div>
+        
+    <div class="container-fluid mb-5">
         <p>To change name:</p>
         <form class="row row-cols-lg-auto g-1 justify-content-center" action="/name_update" method="post" id="formNameUpdate">
-            <div class="col-lg-3">
+            <div class="col-lg">
                 <div class="input-group">
                     <div class="input-group-text">Name</div>
                     <input class="form-control" name="name" autocomplete="off" placeholder="What's your name?" value="{% if profile.name %}{{ profile.name }}{% endif %}" type="text">
                 </div>
             </div>
-            <div class="col-lg-0">
+            <div class="col-lg">
                 <button class="btn btn-primary" type="submit">Change</button>
             </div>
         </form>
@@ -84,7 +108,7 @@
                     <input class="form-control" name="confirmation" autocomplete="off" placeholder="New password (again)" type="password">
                 </div>
             </div>
-            <div class="col-lg-0">
+            <div class="col-lg">
                 <button class="btn btn-primary" type="submit">Change</button>
             </div>
         </form>
