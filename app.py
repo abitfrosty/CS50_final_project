@@ -8,7 +8,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from contextlib import closing
 
-from webApp.helpers import apology, login_required, admin_required, usd
+from webApp.helpers import apology, login_required, admin_required
 from webApp.tests import generate_examples, calculate_weights, duplicate_examples
 from webApp.app_config import app_config
 
@@ -30,14 +30,7 @@ def after_request(response):
     response.headers["Pragma"] = "no-cache"
     return response
 
-"""
-# Custom filter
-app.jinja_env.filters["usd"] = usd
-"""
-
 # Configure session to use redis
-#app.config["SESSION_FILE_DIR"] = mkdtemp()
-#app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "redis"
 Session(app)
@@ -58,15 +51,6 @@ GENDER_LIST = ["male", "female", "other"]
 SQLITE_DB = app_config["SQL_DB"]
 
 TIMEFRAME = {"today": 0, "day": 1, "week": 7, "month": 30, "year": 365, "alltime": 9999}
-
-"""
-@app.template_filter('quoted')
-def quoted(s):
-    l = re.findall("'(.*)\.html'", str(s))
-    if l:
-        return l[0]
-    return None
-"""
 
 @app.route("/")
 @login_required
@@ -104,12 +88,8 @@ def login():
 
         # Remember user's name
         session["user_name"] = row["name"]
-        
-        session["admin"] = True if (row["type"] and "admin" in row["type"]) else False
 
-        #if row["email"]:
-            #message = Message("Hello, {}!".format(row['name']), recipients=[row["email"]])
-            #mail.send(message)
+        session["admin"] = True if (row["type"] and "admin" in row["type"]) else False
 
         # Redirect user to home page
         return redirect("/")
