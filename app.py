@@ -5,15 +5,14 @@ from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
 
+import json
+import sqlite3
 from contextlib import closing
 
 from webApp.helpers import apology, login_required, admin_required
 from webApp.tests import generate_examples, calculate_weights, duplicate_examples
 from webApp.app_config import app_config
 
-import json
-import sqlite3
-#import re
 
 # Configure application
 app = Flask(__name__)
