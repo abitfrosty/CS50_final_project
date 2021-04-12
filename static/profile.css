@@ -9,7 +9,7 @@
 
 .form-floating > .form-control:not(:-moz-placeholder-shown) ~ label {
 opacity: 1;
-color: rgba(0, 0, 0, 0.5);
+color: rgba(0, 0, 0, 0.7);
 background-color: #fff;
 height: auto;
 padding: 0px;
@@ -22,7 +22,7 @@ border-radius: 5px 0 0 0;
 .form-floating > .form-control:not(:placeholder-shown) ~ label,
 .form-floating > .form-select ~ label {
 opacity: 1;
-color: rgba(0, 0, 0, 0.5);
+color: rgba(0, 0, 0, 0.7);
 background-color: #fff;
 height: auto;
 padding: 0px 0px 0px 10px;
@@ -32,7 +32,7 @@ border-radius: 5px 0 0 0;
 }
 .form-floating > .form-control:-webkit-autofill ~ label {
 opacity: 1;
-color: rgba(0, 0, 0, 0.5);
+color: rgba(0, 0, 0, 0.7);
 background-color: #fff;
 height: auto;
 padding: 0px;

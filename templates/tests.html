@@ -7,17 +7,17 @@
 
 {% block main %}
     <h2>Tests:</h2>
+    <h3>Are you ready for a quick and easy math's test?</h3>
+    <p>Measuring your reaction, accuracy and precision</p>
     <div class="container">
-        <h3>Measuring your reaction, accuracy and precision</h3>
-        <h5>Are you ready for a quick and easy math's test?</h5>
         <div class="container mt-5 mb-5" id="testQuery">
             {% if test_continue %}
-            <h6>Unfinished tests</h5>
+            <h4>Unfinished tests</h4>
             <form action="/test_continue" method="get" id="testContinue">
                 <div class="row row-cols-lg-auto g-1 justify-content-center">
                     <div class="col-lg">
                         <div class="input-group">
-                            <div class="input-group-text">Test</div>
+                            <label class="input-group-text">Test</label>
                             <select class="form-select" name="test_id" required>
                                 {% for test in test_continue %}
                                 <option value="{{ test.id }}">id: [{{ test.id }}] date: [{{ test.date }}] levels: [{{ test.levels }}] operators: [{{ test.operators }}] examples: [{{ test.examples }}]</option>
@@ -26,12 +26,12 @@
                         </div>
                     </div>
                     <div class="col-lg-0">
-                        <button class="btn-primary form-control" type="submit">Continue!</button>
+                        <button class="btn btn-primary" type="submit">Continue!</button>
                     </div>
                 </div>
             </form>
             {% endif %}
-            <h6 class="mt-5">Start a new one</h5>
+            <h5 class="mt-5">Start a new one</h5>
             <form action="/test_start" method="get" id="testStart">
                 <div class="row row-cols-lg-auto g-1 justify-content-center">
                     <div class="col-lg-2">
@@ -56,7 +56,7 @@
                     </div>
                     <div class="col-lg-2">
                         <div class="input-group">
-                            <div class="input-group-text">Examples</div>
+                            <label class="input-group-text">Examples</label>
                             <input class="form-control" name="examples" autocomplete="off" placeholder="Num of examples" type="number" value="10" min="1" max="100">
                         </div>
                     </div>
@@ -69,7 +69,7 @@
                     </div>
                     -->
                     <div class="col-lg-0">
-                        <button class="btn-primary form-control" type="submit">I'm ready!</button>
+                        <button class="btn btn-primary" type="submit">I'm ready!</button>
                     </div>
                 </div>
             </form>

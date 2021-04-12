@@ -1,117 +1,110 @@
 {% extends "layout.html" %}
 {% block head %}
-    <script type="text/javascript" src={{ url_for('static', filename='scores.js') }}></script>
-    <link href={{ url_for('static', filename='scores.css') }} rel="stylesheet">
+<script type="text/javascript" src={{ url_for('static', filename='scores.js') }}></script>
+<link href={{ url_for('static', filename='scores.css') }} rel="stylesheet">
 {% endblock %}
 {% block title %}Scores{% endblock %}
 
 {% block main %}
-    <div class="container-fluid" id="example">
-    
-    
-    <div class="container">
-        <h2>Scores:</h2>
-        <div class="mt-5 mb-5">
-            <h4 class="mt-5 mb-5">Rankings by ratio of right answers given to a total number of answers for age up to 10</h4>
-            <table class="table">
-              <thead>
-                <tr>
-                  <th scope="col">Rank</th>
-                  <th scope="col">Name</th>
-                  <th scope="col">Examples</th>
-                  <th scope="col">Answers, %</th>
-                  <th scope="col">Avg Time, ms</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for score in scores.underage10 %}
-                <tr>
-                  <th scope="row">{% if score.rank == 1 %}<img class="crown" alt="golden crown" src="{{ url_for('static', filename='/img/crown_gold.png') }}">{% elif score.rank == 2 %}<img class="crown" alt="silver crown" src="{{ url_for('static', filename='/img/crown_silver.png') }}">{% elif score.rank == 3 %}<img class="crown" alt="bronze crown" src="{{ url_for('static', filename='/img/crown_bronze.png') }}">{% else %}{{ score.rank }}{% endif %}</th>
-                  <td>
-                  {% if score.shared %}
-                  <a href="javascript:void(0);" class="dotted" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-content="Gender: {{ score.gender }}<br>Birthdate: {{ score.birthdate }}<br>Education: {{ score.education }}<br><i>{{ score.bio }}</i>">
-                  {{ score.name }}
-                  </a>
-                  {% else %}
-                  {{ score.name }}
-                  {% endif %}
-                  </td>
-                  <td>{{ score.examples }}</td>
-                  <td>{{ score.answers }}</td>
-                  <td>{{ score.avgtime }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-            <p class="fst-italic">*Have to solve at least 10 examples and be under 10 years old to appear on the score table.</p>
-        </div>
-        <div class="mt-5 mb-5">
-            <h4 class="mt-5 mb-5">Rankings by ratio of right answers given to a total number of answers</h4>
-            <table class="table">
-              <thead>
-                <tr>
-                  <th scope="col">Rank</th>
-                  <th scope="col">Name</th>
-                  <th scope="col">Examples</th>
-                  <th scope="col">Answers, %</th>
-                  <th scope="col">Avg Time, ms</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for score in scores.overall %}
-                <tr>
-                  <th scope="row">{% if score.rank == 1 %}<img class="crown" alt="golden crown" src="{{ url_for('static', filename='/img/crown_gold.png') }}">{% elif score.rank == 2 %}<img class="crown" alt="silver crown" src="{{ url_for('static', filename='/img/crown_silver.png') }}">{% elif score.rank == 3 %}<img class="crown" alt="bronze crown" src="{{ url_for('static', filename='/img/crown_bronze.png') }}">{% else %}{{ score.rank }}{% endif %}</th>
-                  <td>
-                  {% if score.shared %}
-                  <a href="javascript:void(0);" class="dotted" tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-content="Gender: {{ score.gender }}<br>Birthdate: {{ score.birthdate }}<br>Education: {{ score.education }}<br><i>{{ score.bio }}</i>">
-                  {{ score.name }}
-                  </a>
-                  {% else %}
-                  {{ score.name }}
-                  {% endif %}
-                  </td>
-                  <td>{{ score.examples }}</td>
-                  <td>{{ score.answers }}</td>
-                  <td>{{ score.avgtime }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-            <p class="fst-italic">*Have to solve at least 10 examples to appear on the score table</p>
-        </div>
-        <div class="mt-5 mb-5">
-            <h4 class="mt-5 mb-5">Rankings by average time spent on example</h4>
-            <table class="table">
-              <thead>
-                <tr>
-                  <th scope="col">Rank</th>
-                  <th scope="col">Name</th>
-                  <!--<th scope="col">Answers, %</th>-->
-                  <th scope="col">Avg Time, ms</th>
-                  <th scope="col">Examples</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for score in scores.avgtime %}
-                <tr>
-                  <th scope="row">{% if score.rank == 1 %}<img class="crown" class="crown" alt="golden crown" src="{{ url_for('static', filename='/img/crown_gold.png') }}">{% elif score.rank == 2 %}<img class="crown" alt="silver crown" src="{{ url_for('static', filename='/img/crown_silver.png') }}">{% elif score.rank == 3 %}<img class="crown" alt="bronze crown" src="{{ url_for('static', filename='/img/crown_bronze.png') }}">{% else %}{{ score.rank }}{% endif %}</th>
-                  <td>
-                  {% if score.shared %}
-                  <a href="javascript:void(0);" class="dotted" tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-content="Gender: {{ score.gender }}<br>Birthdate: {{ score.birthdate }}<br>Education: {{ score.education }}<br><i>{{ score.bio }}</i>">
-                  {{ score.name }}
-                  </a>
-                  {% else %}
-                  {{ score.name }}
-                  {% endif %}
-                  </td>
-                  <!--<td>{{ score.answers }}</td>-->
-                  <td>{{ score.avgtime }}</td>
-                  <td>{{ score.examples }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-            <p class="fst-italic">*Have to solve at least 10 examples with at least 90% right answers to appear on the score table</p>
-        </div>
-    </div>
+<h2>Scores:</h2>
+<div class="container-fluid mb-5">
+  <div class="mt-5 mb-5">
+    {% for key, val in timeframes.items() %}<a href="/scores?pastdays={{ val }}" class="m-1{% if active == val %} fw-bold{% endif %}">{% if key in ['today', 'alltime'] %}{{ key|capitalize }}{% else %}Past {{ val }} days{% endif %}</a>{% endfor %}
+    <div class="mt-5 mb-5">
+    <h4 class="mt-5 mb-5">Rankings by ratio of right answers given to a total number of answers for age up to 10</h4>
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Rank</th>
+          <th scope="col">Name</th>
+          <th scope="col">Examples</th>
+          <th scope="col">Answers, %</th>
+          <th scope="col">Avg Time, ms</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for score in scores.underage10 %}
+        <tr>
+          <th scope="row">{% if score.rank == 1 %}<img class="crown" alt="golden crown" src="{{ url_for('static', filename='/img/crown_gold.png') }}">{% elif score.rank == 2 %}<img class="crown" alt="silver crown" src="{{ url_for('static', filename='/img/crown_silver.png') }}">{% elif score.rank == 3 %}<img class="crown" alt="bronze crown" src="{{ url_for('static', filename='/img/crown_bronze.png') }}">{% else %}{{ score.rank }}{% endif %}</th>
+          <td>
+            {% if score.shared %}
+			<a href="javascript:void(0);" class="dotted" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-content="<b>Gender:</b> {{ score.gender }}<br><b>Birthdate:</b> {{ score.birthdate }}<br><b>Education:</b> {{ score.education }}<br><i>{{ score.bio }}</i>">
+			{{ score.name }}
+            </a>
+            {% else %} {{ score.name }} {% endif %}
+          </td>
+          <td>{{ score.examples }}</td>
+          <td>{{ score.answers }}</td>
+          <td>{{ score.avgtime }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="fst-italic">*Have to solve at least 10 examples and be under 10 years old to appear on the score table.</p>
+  </div>
+  <div class="mt-5 mb-5">
+    <h4 class="mt-5 mb-5">Rankings by ratio of right answers given to a total number of answers</h4>
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Rank</th>
+          <th scope="col">Name</th>
+          <th scope="col">Examples</th>
+          <th scope="col">Answers, %</th>
+          <th scope="col">Avg Time, ms</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for score in scores.overall %}
+        <tr>
+          <th scope="row">{% if score.rank == 1 %}<img class="crown" alt="golden crown" src="{{ url_for('static', filename='/img/crown_gold.png') }}">{% elif score.rank == 2 %}<img class="crown" alt="silver crown" src="{{ url_for('static', filename='/img/crown_silver.png') }}">{% elif score.rank == 3 %}<img class="crown" alt="bronze crown" src="{{ url_for('static', filename='/img/crown_bronze.png') }}">{% else %}{{ score.rank }}{% endif %}</th>
+          <td>
+            {% if score.shared %}
+			<a href="javascript:void(0);" class="dotted" tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-content="<b>Gender:</b> {{ score.gender }}<br><b>Birthdate:</b> {{ score.birthdate }}<br><b>Education:</b> {{ score.education }}<br><i>{{ score.bio }}</i>">
+			{{ score.name }}
+            </a>
+            {% else %} {{ score.name }} {% endif %}
+          </td>
+          <td>{{ score.examples }}</td>
+          <td>{{ score.answers }}</td>
+          <td>{{ score.avgtime }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="fst-italic">*Have to solve at least 10 examples to appear on the score table</p>
+  </div>
+  <div class="mt-5 mb-5">
+    <h4 class="mt-5 mb-5">Rankings by average time spent on example</h4>
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Rank</th>
+          <th scope="col">Name</th>
+          <!--<th scope="col">Answers, %</th>-->
+          <th scope="col">Avg Time, ms</th>
+          <th scope="col">Examples</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for score in scores.avgtime %}
+        <tr>
+          <th scope="row">{% if score.rank == 1 %}<img class="crown" class="crown" alt="golden crown" src="{{ url_for('static', filename='/img/crown_gold.png') }}">{% elif score.rank == 2 %}<img class="crown" alt="silver crown" src="{{ url_for('static', filename='/img/crown_silver.png') }}">{% elif score.rank == 3 %}<img class="crown" alt="bronze crown" src="{{ url_for('static', filename='/img/crown_bronze.png') }}">{% else %}{{ score.rank }}{% endif %}</th>
+          <td>
+            {% if score.shared %} 
+			<a href="javascript:void(0);" class="dotted" tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-html="true" data-bs-content="<b>Gender:</b> {{ score.gender }}<br><b>Birthdate:</b> {{ score.birthdate }}<br><b>Education:</b> {{ score.education }}<br><i>{{ score.bio }}</i>">
+			{{ score.name }}
+            </a>
+            {% else %} {{ score.name }} {% endif %}
+          </td>
+          <!--<td>{{ score.answers }}</td>-->
+          <td>{{ score.avgtime }}</td>
+          <td>{{ score.examples }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="fst-italic">*Have to solve at least 10 examples with at least 90% right answers to appear on the score table</p>
+  </div>
+</div>	
 {% endblock %}

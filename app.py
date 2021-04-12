@@ -1,3 +1,4 @@
+from os import getenv
 from flask import Flask, flash, redirect, render_template, request, session, jsonify
 from flask_session import Session
 from flask_mail import Mail, Message
@@ -7,8 +8,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from contextlib import closing
 
-from helpers import apology, login_required, admin_required, usd
-from tests import generate_examples, calculate_weights, duplicate_examples
+from webApp.helpers import apology, login_required, admin_required, usd
+from webApp.tests import generate_examples, calculate_weights, duplicate_examples
+from webApp.app_config import app_config
 
 import json
 import sqlite3
@@ -16,7 +18,6 @@ import sqlite3
 
 # Configure application
 app = Flask(__name__)
-
 
 # Ensure templates are auto-reloaded
 app.config["TEMPLATES_AUTO_RELOAD"] = True
@@ -42,22 +43,21 @@ app.config["SESSION_TYPE"] = "redis"
 Session(app)
 
 # Configure mail
-app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER")
-app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
-app.config["MAIL_PORT"] = 587
-app.config["MAIL_SERVER"] = "smtp.gmail.com"
-app.config["MAIL_USE_TLS"] = True
-app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
+app.config["MAIL_DEFAULT_SENDER"] = app_config["MAIL_DEFAULT_SENDER"]
+app.config["MAIL_USERNAME"] = app_config["MAIL_USERNAME"]
+app.config["MAIL_PASSWORD"] = app_config["MAIL_PASSWORD"]
+app.config["MAIL_PORT"] = app_config["MAIL_PORT"]
+app.config["MAIL_SERVER"] = app_config["MAIL_SERVER"]
+app.config["MAIL_USE_TLS"] = app_config["MAIL_USE_TLS"]
 mail = Mail(app)
 
 # Global gender list for '/profile':
 GENDER_LIST = ["male", "female", "other"]
 
 # Global path to the main database for 'db_execute'
-#SQLITE_DB = "/var/www/webApp/webApp/project.db"
-SQLITE_DB = "project.db"
+SQLITE_DB = app_config["SQL_DB"]
 
-PERIODS = {"today": 0, "day": 1, "week": 7, "month": 30, "year": 365, "alltime": 9999}
+TIMEFRAME = {"today": 0, "day": 1, "week": 7, "month": 30, "year": 365, "alltime": 9999}
 
 """
 @app.template_filter('quoted')
@@ -179,9 +179,10 @@ def password_update():
     """Change password"""
     if request.form.get("password") == request.form.get("confirmation"):
         row = db_execute(SQLITE_DB, "UPDATE user SET hash = ? WHERE id = ?;", (generate_password_hash(request.form.get("password")), session["user_id"],))
-        row = db_execute(SQLITE, "SELECT email FROM profile WHERE user_id = ?", (session["user_id"],))
+        row = db_execute(SQLITE_DB, "SELECT name, email FROM profile WHERE user_id = ?", (session["user_id"],))
         if row["email"]:
-            message = Message("Hello, {}!\nYour password has been changed to '{}'".format(row['name'], request.form.get("password")), recipients=[row["email"]])
+            message = Message("Hello, {}!".format(row['name']), recipients=[row["email"]])
+            message.body = "This is 45.138.96.189!\nYou received this email because your password has been changed to '{}'".format(request.form.get("password"))
             mail.send(message)
         return dynamic_flash(u"Your password has been changed successfully!", "info")
     else:
@@ -419,14 +420,17 @@ def example_answer():
 
 @app.route("/scores", methods=["GET"])
 def scores():
+    pastdays = {"pastdays": TIMEFRAME["week"]} # Default time frame for score table
+    if request.args.get("pastdays") and TIMEFRAME["today"] <= int(request.args.get("pastdays")) <= TIMEFRAME["alltime"]:
+        pastdays.update({"pastdays": int(request.args.get("pastdays"))})
     scores = dict()
-    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY answers DESC, examples DESC, avgtime) AS rank FROM (SELECT results.user_id, profile.name, shared.shared, shared.gender, shared.birthdate, shared.education, shared.bio, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :week AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN profile AS shared ON results.user_id = shared.user_id AND shared.shared LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :week GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples > 10) LIMIT 25;"
-    scores["overall"] = db_execute(SQLITE_DB, query, PERIODS, False)
-    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY avgtime, examples DESC, answers DESC) AS rank FROM (SELECT results.user_id, profile.name, shared.shared, shared.gender, shared.birthdate, shared.education, shared.bio, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :week AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN profile AS shared ON results.user_id = shared.user_id AND shared.shared LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :week GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples > 10) WHERE answers >= 90 LIMIT 25;"
-    scores["avgtime"] = db_execute(SQLITE_DB, query, PERIODS, False)
-    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY answers DESC, examples DESC, avgtime) AS rank FROM (SELECT results.user_id, profile.name, shared.shared, shared.gender, shared.birthdate, shared.education, shared.bio, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :week AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN profile AS shared ON results.user_id = shared.user_id AND shared.shared LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :week GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples > 10 AND STRFTIME('%Y', 'now') - STRFTIME('%Y', profile.birthdate) <= 10) LIMIT 25;"
-    scores["underage10"] = db_execute(SQLITE_DB, query, PERIODS, False)
-    return render_template("scores.html", scores=scores)
+    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY answers DESC, examples DESC, avgtime) AS rank FROM (SELECT results.user_id, profile.name, shared.shared, shared.gender, shared.birthdate, shared.education, shared.bio, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :pastdays AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN profile AS shared ON results.user_id = shared.user_id AND shared.shared LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :pastdays GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples >= 10) LIMIT 25;"
+    scores["overall"] = db_execute(SQLITE_DB, query, pastdays, False)
+    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY avgtime, examples DESC, answers DESC) AS rank FROM (SELECT results.user_id, profile.name, shared.shared, shared.gender, shared.birthdate, shared.education, shared.bio, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :pastdays AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN profile AS shared ON results.user_id = shared.user_id AND shared.shared LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :pastdays GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples >= 10) WHERE answers >= 90 LIMIT 25;"
+    scores["avgtime"] = db_execute(SQLITE_DB, query, pastdays, False)
+    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY answers DESC, examples DESC, avgtime) AS rank FROM (SELECT results.user_id, profile.name, shared.shared, shared.gender, shared.birthdate, shared.education, shared.bio, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :pastdays AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN profile AS shared ON results.user_id = shared.user_id AND shared.shared LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :pastdays GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples >= 10 AND STRFTIME('%Y', 'now') - STRFTIME('%Y', profile.birthdate) <= 10) LIMIT 25;"
+    scores["underage10"] = db_execute(SQLITE_DB, query, pastdays, False)
+    return render_template("scores.html", scores=scores, timeframes=TIMEFRAME, active=pastdays["pastdays"])
 
 
 @app.route("/results", methods=["GET"])
@@ -461,6 +465,10 @@ def results():
 def about():
     return render_template("about.html")
 
+
+@app.route("/semenov")
+def semenov():
+    return render_template("semenov.html")
 
 def dict_factory(cursor, row):
     d = {}
@@ -507,4 +515,4 @@ for code in default_exceptions:
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host='0.0.0.0')
