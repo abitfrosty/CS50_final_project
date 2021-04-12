@@ -1,93 +1,91 @@
 <!DOCTYPE html>
-
 <html lang="en">
 
-    <head>
+ <head>
+   <meta charset="utf-8">
+   <meta name="viewport" content="initial-scale=1, width=device-width">
+   <meta name="theme-color" content="#ffffff">
+   <meta name="description" content="My CS50 final project is this web site on Ubuntu/Apache/Flask.">
+   <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
 
-        <meta charset="utf-8">
-        <meta name="viewport" content="initial-scale=1, width=device-width">
+   <!-- JQuery -->
+   <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script> -->
+   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 
-        <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
-        
-        <!-- JQuery -->
-        <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script> -->
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+   <!-- Bootstrap CSS and JavaScript Bundle with Popper -->
+   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
+   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/js/bootstrap.bundle.min.js" integrity="sha384-b5kHyXgcpbZJO/tY9Ul7kGkf1S0CWuKcCD38l8YkeH8z8QjE0GmW1gYU5S9FOnJ0" crossorigin="anonymous"></script>
 
-        <!-- Bootstrap CSS and JavaScript Bundle with Popper -->
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/js/bootstrap.bundle.min.js" integrity="sha384-b5kHyXgcpbZJO/tY9Ul7kGkf1S0CWuKcCD38l8YkeH8z8QjE0GmW1gYU5S9FOnJ0" crossorigin="anonymous"></script>
-        
-        <link rel="icon" href="{{ url_for('static', filename='favicon/favicon.ico') }}">
-        <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='favicon/apple-touch-icon.png') }}">
-        <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon/favicon-32x32.png') }}">
-        <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon/favicon-16x16.png') }}">
-        <link rel="manifest" href="{{ url_for('static', filename='favicon/site.webmanifest') }}">
-        
-        <!-- Flask JSON -->
-        <script type=text/javascript>$SCRIPT_ROOT = {{ request.script_root|tojson|safe }};</script>
-        
-        <script type="text/javascript" src="{{ url_for('static', filename='scripts.js') }}"></script>
-        <!-- <script type="text/javascript" src="/static/scripts.js"></script> -->
-        
-        {% block head %}{% endblock %}
-        
-        <title>My Project: {% block title %}{% endblock %}</title>
+   <link rel="icon" href="{{ url_for('static', filename='favicon/favicon.ico') }}">
+   <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='favicon/apple-touch-icon.png') }}">
+   <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon/favicon-32x32.png') }}">
+   <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon/favicon-16x16.png') }}">
+   <link rel="manifest" href="{{ url_for('static', filename='favicon/site.webmanifest') }}">
 
-    </head>
+   <!-- Flask JSON -->
+   <script type=text/javascript>$SCRIPT_ROOT = {{ request.script_root|tojson|safe }};</script>
 
-    <body>
+   <script type="text/javascript" src="{{ url_for('static', filename='scripts.js') }}"></script>
+   <!-- <script type="text/javascript" src="/static/scripts.js"></script> -->
 
-        <nav class="navbar navbar-expand-md navbar-light bg-light border">
-            <a class="navbar-brand" href="/"><span class="blue">P</span><span class="red">r</span><span class="yellow">o</span><span class="green">j</span>&nbsp;<span class="red">Site</span></a>
-            <button class="navbar-toggler" data-bs-target="#navbar" data-bs-toggle="collapse" type="button">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbar">
-                    <ul class="navbar-nav mr-auto mt-2">
-                        {% for href, caption in [('/about', 'About'), ('/scores', 'Scores'), ('/tests', 'Tests')] %}
-                        <li class="nav-item"><a class="nav-link" href="{{ href }}">{{ caption }}</a></li>
-                        {% endfor %}
-                        {% if session.user_id %}<li class="nav-item"><a class="nav-link" href="/results">Results</a></li>{% endif %}
-                    </ul>
-                {% if session.user_id %}
-                    <ul class="navbar-nav ml-auto mt-2">
-                        <li class="nav-item"><a class="nav-link" href="/profile">Profile</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/logout">Log Out</a></li>
-                    </ul>
-                {% else %}
-                    <ul class="navbar-nav ml-auto mt-2">
-                        <li class="nav-item"><a class="nav-link" href="/register">Register</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/login">Log In</a></li>
-                    </ul>
-                {% endif %}
-            </div>
-        </nav>
+   {% block head %}{% endblock %}
 
-        <header>
-            {% with messages = get_flashed_messages(with_categories=true) %}
-              {% if messages %}
-              <div id="messages">
-                {% for category, message in messages %}
-                <div class='alert alert-{{ category }} alert-dismissible fade show text-center' role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                {% endfor %}
-              </div>
-              {% endif %}
-            {% endwith %}
-            {% block header %}{% endblock %}
-            <div id="notifications"></div>
-        </header>
+   <title>My Project: {% block title %}{% endblock %}</title>
 
-        <main class="container p-5">
-            {% block main %}{% endblock %}
-        </main>
+ </head>
 
-        <footer class="small text-center text-muted">
-            Made by <a href="https://github.com/abitfrosty">Semenov Igor</a>
-        </footer>
+ <body>
 
-    </body>
+   <nav class="navbar navbar-expand-md navbar-light bg-light border">
+     <a class="navbar-brand" href="/"><span class="blue">P</span><span class="red">r</span><span class="yellow">o</span><span class="green">j</span>&nbsp;<span class="red">Site</span></a>
+     <button class="navbar-toggler" data-bs-target="#navbar" data-bs-toggle="collapse" type="button">
+       <span class="navbar-toggler-icon"></span>
+     </button>
+     <div class="collapse navbar-collapse" id="navbar">
+       <ul class="navbar-nav mr-auto mt-2">
+         {% for href, caption in [('/about', 'About'), ('/scores', 'Scores'), ('/tests', 'Tests')] %}
+         <li class="nav-item"><a class="nav-link" href="{{ href }}">{{ caption }}</a></li>
+         {% endfor %}
+   {% if session.user_id %}
+         <li class="nav-item"><a class="nav-link" href="/results">Results</a></li>
+   {% endif %}
+       </ul>
+       {% if session.user_id %}
+       <ul class="navbar-nav ml-auto mt-2">
+         <li class="nav-item"><a class="nav-link" href="/profile">Profile</a></li>
+         <li class="nav-item"><a class="nav-link" href="/logout">Log Out</a></li>
+       </ul>
+       {% else %}
+       <ul class="navbar-nav ml-auto mt-2">
+         <li class="nav-item"><a class="nav-link" href="/register">Register</a></li>
+         <li class="nav-item"><a class="nav-link" href="/login">Log In</a></li>
+       </ul>
+       {% endif %}
+     </div>
+   </nav>
+
+   <header>
+     {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}
+     <div id="messages">
+       {% for category, message in messages %}
+       <div class='alert alert-{{ category }} alert-dismissible fade show text-center' role="alert">
+         {{ message }}
+         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+       </div>
+       {% endfor %}
+     </div>
+     {% endif %}{% endwith %}{% block header %}{% endblock %}
+     <div id="notifications"></div>
+   </header>
+
+   <main class="container p-5">
+     {% block main %}{% endblock %}
+   </main>
+
+   <footer class="small text-center text-muted">
+     Made by <a href="/semenov">Semenov Igor</a>
+   </footer>
+
+ </body>
 
 </html>

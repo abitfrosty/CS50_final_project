@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+{% block title %}Semenov profile{% endblock %}
+{% block main %}
+			<h2>My contacts</h2>
+			<div class="container mt-2 mb-5">
+				<figure>
+					<figcaption class="fw-bold">Telegram</figcaption>
+					<p>@abitfrosty</p>
+				</figure>
+				<figure>
+					<figcaption class="fw-bold">Facebook</figcaption>
+					<p>facebook.com/abitfrosty</p>
+				</figure>
+				<figure>
+					<figcaption class="fw-bold">GitHub</figcaption>
+					<p>github.com/abitfrosty</p>
+				</figure>
+				<figure>
+					<figcaption class="fw-bold">Mail</figcaption>
+					<p>abitfrosty@gmail.com</p>
+				</figure>
+			</div>
+
+			<h2>My biography</h2>
+			<div class="container mt-2 mb-5">
+				<figure>
+					<figcaption class="fw-bold">Where I was working:</figcaption>
+						<p><cite>Ferromet: financial manager</cite> 2011-</p>
+						<p><cite>1c BIT: Project management department, programmer</cite> 2010-2011</p>
+						<p><cite>NYSE: day trader</cite> 2004-2007</p>
+				</figure>
+				<figure>
+				<figcaption class="fw-bold">Where I was studying:</figcaption>
+					<p><cite>CS50.Harvard: Computer science and the art of programming</cite> 2021</p>
+					<p><cite>Dataquest.io: Data Scientist in Python</cite> 2020-2021</p>
+					<p><cite>Datacamp.com: Data Scientist with Python</cite> 2020</p>
+					<p><cite>Edx.org: Deep Learning Explained by Microsoft</cite> 2019</p>
+					<p><cite>Coursera.org: Machine Learning by Andrew Ng</cite> 2019</p>
+					<p><cite>Codecademy.com: Learn JavaScript Course</cite> 2019</p>
+					<p><cite>KhanAcademy.org: Intro to JS: Drawing & Animation</cite> 2018</p>
+				</figure>
+				<figure>
+					<figcaption class="fw-bold">My university</figcaption>
+					<p>Saint Petersburg State University of Economics and Finance</p>
+				</figure>
+				<figure>
+					<figcaption class="fw-bold">My second school</figcaption>
+					<p>Business school "Vzmakh"</p>
+				</figure>
+				<figure>
+					<figcaption class="fw-bold">My first school</figcaption>
+					<p>Lyceum №393</p>
+				</figure>
+			</div>
+
+			<h2>My photos</h2>
+			<div class="container mt-2">
+				<div class="row row-cols-1 row-cols-md-3 mt-5 mb-5">
+				  <div class="col mt-1 mb-1">
+					<div class="card h-100">
+					  <img src="{{ url_for('static', filename='/img/me_Dali_sm.jpg') }}" class="card-img-top" alt="Gala Dali Castle House-Museum">
+					  <div class="card-body">
+						<p class="card-text">I am in the museum of Salvador Dali.<br>Gala Dali Castle House-Museum</p>
+					  </div>
+					</div>
+				  </div>
+				  <div class="col mt-1 mb-1">
+					<div class="card h-100">
+					  <img src="{{ url_for('static', filename='/img/family_sm.jpg') }}" class="card-img-top" alt="The Lighthouse On The Punta Del Albir">
+					  <div class="card-body">
+						<p class="card-text">My family on a NY trip to Spain.<br>The Lighthouse On The Punta Del Albir.</p>
+					  </div>
+					</div>
+				  </div>
+				  <div class="col mt-1 mb-1">
+					<div class="card h-100">
+					  <img src="{{ url_for('static', filename='/img/me_Levante_sm.jpg') }}" class="card-img-top" alt="Levante view, Benidorm">
+					  <div class="card-body">
+						<p class="card-text">I love hiking.<br>Benidorm's Levante view from high point.</p>
+					  </div>
+					</div>
+				  </div>
+				</div>
+			</div>
+{% endblock %}

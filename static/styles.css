@@ -58,4 +58,6 @@ main table {
   top: 0;
 }
 
-
+.dotted {
+  text-decoration: 1px underline dotted;
+}

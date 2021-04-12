@@ -1,13 +1,16 @@
+from os import getenv
 from flask import Flask, flash, redirect, render_template, request, session, jsonify
 from flask_session import Session
+from flask_mail import Mail, Message
 from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from contextlib import closing
 
-from helpers import apology, login_required, admin_required, db_execute, dict_factory, usd
-from tests import generate_examples, calculate_weights, duplicate_examples
+from webApp.helpers import apology, login_required, admin_required, usd
+from webApp.tests import generate_examples, calculate_weights, duplicate_examples
+from webApp.app_config import app_config
 
 import json
 import sqlite3
@@ -32,19 +35,29 @@ def after_request(response):
 app.jinja_env.filters["usd"] = usd
 """
 
-# Configure session to use filesystem (instead of signed cookies)
-app.config["SESSION_FILE_DIR"] = mkdtemp()
+# Configure session to use redis
+#app.config["SESSION_FILE_DIR"] = mkdtemp()
+#app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_PERMANENT"] = False
-app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_TYPE"] = "redis"
 Session(app)
+
+# Configure mail
+app.config["MAIL_DEFAULT_SENDER"] = app_config["MAIL_DEFAULT_SENDER"]
+app.config["MAIL_USERNAME"] = app_config["MAIL_USERNAME"]
+app.config["MAIL_PASSWORD"] = app_config["MAIL_PASSWORD"]
+app.config["MAIL_PORT"] = app_config["MAIL_PORT"]
+app.config["MAIL_SERVER"] = app_config["MAIL_SERVER"]
+app.config["MAIL_USE_TLS"] = app_config["MAIL_USE_TLS"]
+mail = Mail(app)
 
 # Global gender list for '/profile':
 GENDER_LIST = ["male", "female", "other"]
 
 # Global path to the main database for 'db_execute'
-SQLITE_DB = "project.db"
+SQLITE_DB = app_config["SQL_DB"]
 
-PERIODS = {"today": 0, "day": 1, "week": 7, "month": 30, "year": 365, "alltime": 9999}
+TIMEFRAME = {"today": 0, "day": 1, "week": 7, "month": 30, "year": 365, "alltime": 9999}
 
 """
 @app.template_filter('quoted')
@@ -79,7 +92,7 @@ def login():
             return apology("must provide password", 403)
 
         row = db_execute(SQLITE_DB,
-                         "SELECT user_temp.id AS id, user_temp.hash AS hash, user_temp.type AS type, profile.name AS name FROM (SELECT id, hash, type FROM user WHERE login = ?) AS user_temp LEFT JOIN profile ON user_temp.id = profile.user_id;",
+                         "SELECT user_temp.id AS id, user_temp.hash AS hash, user_temp.type AS type, profile.name AS name, profile.email FROM (SELECT id, hash, type FROM user WHERE login = ?) AS user_temp LEFT JOIN profile ON user_temp.id = profile.user_id;",
                          (request.form.get("login"),))
             
         # Ensure login exists and password is correct
@@ -93,6 +106,10 @@ def login():
         session["user_name"] = row["name"]
         
         session["admin"] = True if (row["type"] and "admin" in row["type"]) else False
+
+        #if row["email"]:
+            #message = Message("Hello, {}!".format(row['name']), recipients=[row["email"]])
+            #mail.send(message)
 
         # Redirect user to home page
         return redirect("/")
@@ -137,7 +154,6 @@ def profile_update():
     query = query[:-len(", ")]
     query += " WHERE user_id = ?;"
     params.append(session["user_id"])
-
     db_execute(SQLITE_DB, query, params)
     return dynamic_flash(u"Profile update was successful!", "info")
 
@@ -150,12 +166,24 @@ def name_update():
     return dynamic_flash(u"Good to see you, {0}!".format(session["user_name"]),"primary")
 
 
+@app.route("/email_update", methods=["POST"])
+@login_required
+def email_update():
+    db_execute(SQLITE_DB, "UPDATE profile SET email = ? WHERE user_id = ?;", (request.form.get("email"), session["user_id"],))
+    return dynamic_flash(u"Email was successfully updated!", "primary")
+
+
 @app.route("/password_update", methods=["POST"])
 @login_required
 def password_update():
     """Change password"""
     if request.form.get("password") == request.form.get("confirmation"):
         row = db_execute(SQLITE_DB, "UPDATE user SET hash = ? WHERE id = ?;", (generate_password_hash(request.form.get("password")), session["user_id"],))
+        row = db_execute(SQLITE_DB, "SELECT name, email FROM profile WHERE user_id = ?", (session["user_id"],))
+        if row["email"]:
+            message = Message("Hello, {}!".format(row['name']), recipients=[row["email"]])
+            message.body = "This is 45.138.96.189!\nYou received this email because your password has been changed to '{}'".format(request.form.get("password"))
+            mail.send(message)
         return dynamic_flash(u"Your password has been changed successfully!", "info")
     else:
         return dynamic_flash(u"Password and confirmation did not match!", "danger")
@@ -392,14 +420,17 @@ def example_answer():
 
 @app.route("/scores", methods=["GET"])
 def scores():
+    pastdays = {"pastdays": TIMEFRAME["week"]} # Default time frame for score table
+    if request.args.get("pastdays") and TIMEFRAME["today"] <= int(request.args.get("pastdays")) <= TIMEFRAME["alltime"]:
+        pastdays.update({"pastdays": int(request.args.get("pastdays"))})
     scores = dict()
-    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY answers DESC, examples DESC, avgtime) AS rank FROM (SELECT results.user_id, name, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :alltime AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :alltime GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples > 10) LIMIT 25;"
-    scores["overall"] = db_execute(SQLITE_DB, query, PERIODS, False)
-    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY avgtime, examples DESC, answers DESC) AS rank FROM (SELECT results.user_id, name, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :alltime AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :alltime GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples > 10) WHERE answers >= 90 LIMIT 25;"
-    scores["avgtime"] = db_execute(SQLITE_DB, query, PERIODS, False)
-    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY answers DESC, examples DESC, avgtime) AS rank FROM (SELECT results.user_id, name, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :alltime AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :alltime GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples > 10 AND STRFTIME('%Y', 'now') - STRFTIME('%Y', birthdate) <= 10) LIMIT 25;"
-    scores["underage10"] = db_execute(SQLITE_DB, query, PERIODS, False)
-    return render_template("scores.html", scores=scores)
+    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY answers DESC, examples DESC, avgtime) AS rank FROM (SELECT results.user_id, profile.name, shared.shared, shared.gender, shared.birthdate, shared.education, shared.bio, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :pastdays AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN profile AS shared ON results.user_id = shared.user_id AND shared.shared LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :pastdays GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples >= 10) LIMIT 25;"
+    scores["overall"] = db_execute(SQLITE_DB, query, pastdays, False)
+    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY avgtime, examples DESC, answers DESC) AS rank FROM (SELECT results.user_id, profile.name, shared.shared, shared.gender, shared.birthdate, shared.education, shared.bio, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :pastdays AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN profile AS shared ON results.user_id = shared.user_id AND shared.shared LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :pastdays GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples >= 10) WHERE answers >= 90 LIMIT 25;"
+    scores["avgtime"] = db_execute(SQLITE_DB, query, pastdays, False)
+    query = "SELECT *, ROW_NUMBER() OVER (ORDER BY answers DESC, examples DESC, avgtime) AS rank FROM (SELECT results.user_id, profile.name, shared.shared, shared.gender, shared.birthdate, shared.education, shared.bio, examples, right, wrong, ROUND(CAST(right AS FLOAT)*100/examples, 1) AS answers, avgtime FROM (SELECT user_id, COUNT(*) AS examples, CAST(AVG(timespent) AS INT) AS avgtime FROM result WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :pastdays AND answer IS NOT NULL GROUP BY user_id) AS results JOIN profile ON results.user_id = profile.user_id LEFT JOIN profile AS shared ON results.user_id = shared.user_id AND shared.shared LEFT JOIN (SELECT SUM(CASE WHEN eval = answer THEN 1 ELSE 0 END) AS right, SUM(CASE WHEN eval = answer THEN 0 ELSE 1 END) AS wrong, user_id FROM result JOIN example ON result.example_id = example.id WHERE CAST(JULIANDAY('now')-JULIANDAY(date) AS INT) <= :pastdays GROUP BY user_id) AS checks ON results.user_id = checks.user_id WHERE examples >= 10 AND STRFTIME('%Y', 'now') - STRFTIME('%Y', profile.birthdate) <= 10) LIMIT 25;"
+    scores["underage10"] = db_execute(SQLITE_DB, query, pastdays, False)
+    return render_template("scores.html", scores=scores, timeframes=TIMEFRAME, active=pastdays["pastdays"])
 
 
 @app.route("/results", methods=["GET"])
@@ -435,6 +466,42 @@ def about():
     return render_template("about.html")
 
 
+@app.route("/semenov")
+def semenov():
+    return render_template("semenov.html")
+
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+
+def db_execute(db, query, args=(), fetchone=True):
+    """
+    Auto-closing and auto-committing function for sqlite3 queries.
+    https://flask-doc.readthedocs.io/en/latest/patterns/sqlite3.html
+    """
+    with closing(sqlite3.connect(db)) as conn: # auto-closes
+        conn.row_factory = dict_factory
+        with conn: # auto-commits
+            with closing(conn.cursor()) as cursor: # auto-closes
+                cursor.execute(query, args)
+                if any(key in query for key in ["INSERT", "REPLACE"]):
+                    return cursor.lastrowid
+                rv = cursor.fetchall()
+                return (rv[0] if rv else None) if fetchone else rv
+
+def db_executemany(db, query, args=()):
+    """
+    Auto-closing and auto-committing function for sqlite3 queries.
+    """
+    with closing(sqlite3.connect(db)) as conn: # auto-closes
+        with conn: # auto-commits
+            with closing(conn.cursor()) as cursor: # auto-closes
+                cursor.executemany(query, args)
+                return cursor.rowcount
+
+
 def errorhandler(e):
     """Handle error"""
     if not isinstance(e, HTTPException):
@@ -446,3 +513,6 @@ def errorhandler(e):
 for code in default_exceptions:
     app.errorhandler(code)(errorhandler)
 
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0')
